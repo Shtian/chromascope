@@ -1,0 +1,5 @@
+---
+"chromascope": patch
+---
+
+initial release

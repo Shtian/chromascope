@@ -2,17 +2,21 @@
   "name": "chromascope",
   "version": "0.0.1",
   "description": "Diff the same page in different browsers",
-  "main": "index.js",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
   "scripts": {
     "dev": "vitest",
     "build": "tsup src/index.ts --format cjs,esm --dts",
     "lint": "tsc",
     "test": "vitest run",
-    "ci": "pnpm run lint && pnpm run test && pnpm run build"
+    "ci": "pnpm run lint && pnpm run test && pnpm run build",
+    "release": "pnpm run ci && changeset publish"
   },
   "author": "Stian Haga",
   "license": "ISC",
   "devDependencies": {
+    "@changesets/cli": "^2.26.1",
     "@playwright/test": "^1.32.1",
     "@types/node": "^18.15.11",
     "playwright": "^1.32.1",
