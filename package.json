@@ -1,6 +1,6 @@
 {
   "name": "chromascope",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Diff the same page in different browsers",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
