@@ -1,5 +1,11 @@
 # chromascope
 
+## 0.1.1
+
+### Patch Changes
+
+- parse url and log it
+
 ## 0.1.0
 
 ### Minor Changes
