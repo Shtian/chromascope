@@ -1,5 +1,11 @@
 # chromascope
 
+## 0.2.0
+
+### Minor Changes
+
+- 335d018: working POC for diffing
+
 ## 0.1.2
 
 ### Patch Changes
