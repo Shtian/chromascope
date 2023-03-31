@@ -4,7 +4,11 @@
   "description": "Diff the same page in different browsers",
   "main": "index.js",
   "scripts": {
-    "build": "tsup src/index.ts --format cjs,esm --dts"
+    "dev": "vitest",
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "lint": "tsc",
+    "test": "vitest run",
+    "ci": "pnpm run lint && pnpm run test && pnpm run build"
   },
   "author": "Stian Haga",
   "license": "ISC",
@@ -12,6 +16,8 @@
     "@playwright/test": "^1.32.1",
     "@types/node": "^18.15.11",
     "playwright": "^1.32.1",
-    "typescript": "^5.0.3"
+    "tsup": "^6.7.0",
+    "typescript": "^5.0.3",
+    "vitest": "^0.29.8"
   }
 }
