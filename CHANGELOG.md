@@ -1,5 +1,11 @@
 # chromascope
 
+## 0.1.2
+
+### Patch Changes
+
+- cde9303: try publishing new release
+
 ## 0.1.1
 
 ### Patch Changes
