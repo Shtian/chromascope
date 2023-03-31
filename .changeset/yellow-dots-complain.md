@@ -1,5 +1,0 @@
----
-"chromascope": minor
----
-
-add cli
