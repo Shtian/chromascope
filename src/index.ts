@@ -22,6 +22,8 @@ cli
   .option("-f, --folder <folder>", "Set the base folder for chromascope runs", {
     default: "chromascope-runs",
   })
+  // TODO: Configure dimensions/full page screenshots
+  // TODO: Option for mobile browsers
   .action(async (url: string, options) => {
     spinner.start("Starting ⚙️");
     if (!url || !isUrl(url)) {
