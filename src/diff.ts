@@ -1,35 +1,45 @@
+import fs from "fs";
 import { webkit, firefox, chromium, Browser } from "@playwright/test";
 import { PNG } from "pngjs";
+import { ChromascopeContext } from "./context";
 import pixelmatch from "pixelmatch";
-import fs from "fs";
-import { ChromascopeContext } from "./chromascope-context";
-
-interface DiffOptions {
-  verbose: boolean;
-  runId: string;
-}
+import logger from "./logger";
 
 export const diff = async (link: string, ctx: ChromascopeContext) => {
-  await diffWebkit(link, ctx);
-  await diffFirefox(link, ctx);
-  await diffChromium(link, ctx);
-  await diffChromiumToWebkit(ctx);
-  return true;
+  logger.setOptions({ verbose: ctx.options.verbose });
+
+  const chromiumScreenshotPath = await diffChromium(link, ctx);
+  const webkitScreenshotPath = await diffWebkit(link, ctx);
+  const firefoxScreenshotPath = await diffFirefox(link, ctx);
+
+  const chromiumWebkitDiff = diffScreenshots(
+    chromiumScreenshotPath,
+    webkitScreenshotPath,
+    "chromium-webkit",
+    ctx
+  );
+  const chromiumFirefoxDiff = diffScreenshots(
+    chromiumScreenshotPath,
+    firefoxScreenshotPath,
+    "chromium-firefox",
+    ctx
+  );
+  return { webkit: chromiumWebkitDiff, firefox: chromiumFirefoxDiff };
 };
 
 const diffWebkit = async (link: string, ctx: ChromascopeContext) => {
   const browser = await webkit.launch();
-  await runBrowserDiff(link, browser, ctx);
+  return await runBrowserDiff(link, browser, ctx);
 };
 
 const diffFirefox = async (link: string, ctx: ChromascopeContext) => {
   const browser = await firefox.launch();
-  await runBrowserDiff(link, browser, ctx);
+  return await runBrowserDiff(link, browser, ctx);
 };
 
 const diffChromium = async (link: string, ctx: ChromascopeContext) => {
   const browser = await chromium.launch();
-  await runBrowserDiff(link, browser, ctx);
+  return await runBrowserDiff(link, browser, ctx);
 };
 
 const runBrowserDiff = async (
@@ -42,33 +52,32 @@ const runBrowserDiff = async (
   const name = type.name();
   const page = await context.newPage();
   await page.goto(link);
-  const path = `runs/${ctx.runId}/${name}.png`;
-  if (ctx.options.verbose) {
-    console.log(`Saving ${name} screenshot to ${path}`);
-  }
+  const path = `${ctx.options.folder}/${name}.png`;
+  logger.debug(`Saving ${name} screenshot to ${path}`);
   await page.screenshot({ path });
+  return path;
 };
 
-const diffChromiumToWebkit = (ctx: ChromascopeContext) => {
-  const baseFolder = `chromascope-runs`;
-  const chromiumPath = `${baseFolder}/${ctx.runId}/chromium.png`;
-  const webkitPath = `${baseFolder}/${ctx.runId}/webkit.png`;
-  const diffPath = `${baseFolder}/${ctx.runId}/diff.png`;
+const diffScreenshots = (
+  screenshotOnePath: string,
+  screenshotTwoPath: string,
+  outputName: string,
+  ctx: ChromascopeContext
+) => {
+  const png1 = PNG.sync.read(fs.readFileSync(screenshotOnePath));
+  const png2 = PNG.sync.read(fs.readFileSync(screenshotTwoPath));
 
-  const chromiumPng = PNG.sync.read(fs.readFileSync(chromiumPath));
-  const webkitPng = PNG.sync.read(fs.readFileSync(webkitPath));
-
-  const { width, height } = chromiumPng;
+  const { width, height } = png1;
   const diff = new PNG({ width, height });
-  const result = pixelmatch(
-    chromiumPng.data,
-    webkitPng.data,
-    diff.data,
-    width,
-    height,
-    { threshold: 0.1 }
-  );
-  fs.writeFileSync(diffPath, PNG.sync.write(diff));
+  const result = pixelmatch(png1.data, png2.data, diff.data, width, height, {
+    threshold: ctx.options.threshold,
+  });
 
-  console.log(`${result} pixels were different!`);
+  if (ctx.options.saveDiff) {
+    fs.writeFileSync(
+      `${ctx.options.folder}/diff-${outputName}.png`,
+      PNG.sync.write(diff)
+    );
+  }
+  return result;
 };

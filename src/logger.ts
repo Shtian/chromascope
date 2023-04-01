@@ -13,6 +13,10 @@ class Logger {
     console.log(...args);
   }
 
+  error(...args: any[]) {
+    console.error(...args);
+  }
+
   debug(...args: any[]) {
     if (this.options.verbose) {
       console.log(...args);

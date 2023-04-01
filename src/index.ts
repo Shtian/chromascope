@@ -3,7 +3,7 @@ import cac from "cac";
 import { isUrl } from "./utils";
 import { diff } from "./diff";
 import { version } from "../package.json";
-import { createChromascopeContext } from "./chromascope-context";
+import { createChromascopeContext } from "./context";
 import logger from "./logger";
 
 const cli = cac();
@@ -14,6 +14,13 @@ cli
     "Diff the URL in chromium, firefox, and webkit. Using chromium as the base."
   )
   .option("-v, --verbose", "Show more output")
+  .option("-s, --save-diff", "Save generated diff as png")
+  .option("-t, --threshold <threshold>", "Set the threshold for the diff", {
+    default: 0.1,
+  })
+  .option("-f, --folder <folder>", "Set the base folder for chromascope runs", {
+    default: "chromascope-runs",
+  })
   .action(async (url: string, options) => {
     if (!url || !isUrl(url)) {
       console.error("Please provide a valid url");
@@ -31,19 +38,21 @@ cli
     logger.debug(`Run ID: ${ctx.runId}`);
 
     const result = await diff(url, ctx);
-    if (result) process.exit(0);
-    process.exit(1);
+    logger.log("Diff Results:");
+    logger.log(JSON.stringify(result));
+    process.exit(0);
   });
 
 cli.help();
 cli.version(version);
-async () => {
+
+(async () => {
   try {
     cli.parse(process.argv, { run: false });
 
     await cli.runMatchedCommand();
   } catch (error) {
-    console.error("Error running command: ", error);
+    logger.error("Error running command: ", error);
     process.exit(1);
   }
-};
+})();
