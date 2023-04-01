@@ -40,7 +40,7 @@ Options:
   -f, --full-page              Take a full page screenshot
   -v, --verbose                Show more output
   -s, --save-diff              Save generated diff as png
-  -t, --threshold <threshold>  Set the threshold for the diff (default: 0.1)
+  -t, --threshold <threshold>  Set the threshold for the diff (default: 0.2)
   -f, --folder <folder>        Set the base folder for chromascope runs (default: chromascope-runs)
   -h, --help                   Display this message
 ```

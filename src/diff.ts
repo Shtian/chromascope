@@ -15,19 +15,18 @@ export type ImageWithMetadata = Pick<PNGWithMetadata, "data" | "width" | "height
 export const diff = async (link: string, ctx: ChromascopeContext) => {
   logger.setOptions({ verbose: ctx.options.verbose });
 
-  const screenshots = [screenshotChromium(link, ctx), screenshotWebkit(link, ctx), screenshotFirefox(link, ctx)];
-
+  const screenshots = [screenshotChromium(link, ctx), screenshotWebKit(link, ctx), screenshotFirefox(link, ctx)];
   const results = await Promise.allSettled(screenshots);
+  const [chromiumScreenshotResult, webKitScreenshotResult, firefoxScreenshotResult] = results;
 
-  const [chromiumScreenshotResult, webkitScreenshotResult, firefoxScreenshotResult] = results;
   const chromiumScreenshotPath =
     chromiumScreenshotResult.status === "fulfilled" ? chromiumScreenshotResult.value : null;
-  const webkitScreenshotPath = webkitScreenshotResult.status === "fulfilled" ? webkitScreenshotResult.value : null;
+  const webKitScreenshotPath = webKitScreenshotResult.status === "fulfilled" ? webKitScreenshotResult.value : null;
   const firefoxScreenshotPath = firefoxScreenshotResult.status === "fulfilled" ? firefoxScreenshotResult.value : null;
 
-  const chromiumWebkitDiff = await diffScreenshots(
+  const chromiumWebKitDiff = await diffScreenshots(
     chromiumScreenshotPath,
-    webkitScreenshotPath,
+    webKitScreenshotPath,
     "chromium-webkit",
     ctx,
   );
@@ -51,16 +50,16 @@ export const diff = async (link: string, ctx: ChromascopeContext) => {
   ctx.spinner.text = "";
 
   return [
-    { ...chromiumWebkitDiff, browserName: "🍎 WebKit" },
+    { ...chromiumWebKitDiff, browserName: "🍎 WebKit" },
     { ...chromiumFirefoxDiff, browserName: "🦊 Firefox" },
   ];
 };
 
-const screenshotWebkit = async (link: string, ctx: ChromascopeContext) => {
-  const webkitSpinner = createSpinner().start("Capturing WebKit screenshot 📷");
+const screenshotWebKit = async (link: string, ctx: ChromascopeContext) => {
+  const webKitSpinner = createSpinner().start("Capturing WebKit screenshot 📷");
   const browser = await webkit.launch();
   const imageBuffer = await captureBrowserScreenshot(link, browser, ctx);
-  webkitSpinner.succeed("Captured WebKit screenshot 📸");
+  webKitSpinner.succeed("Captured WebKit screenshot 📸");
   return imageBuffer;
 };
 

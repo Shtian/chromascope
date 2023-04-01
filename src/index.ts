@@ -21,8 +21,8 @@ cli
   .option("-f, --folder <folder>", "Set the base folder for chromascope runs", {
     default: "chromascope-runs",
   })
-  // TODO: Configure dimensions/full page screenshots
-  // TODO: Option for mobile browsers
+  // TODO: Add option to configure browser dimensions
+  // TODO: Add option for mobile browsers
   // rome-ignore lint/suspicious/noExplicitAny: <explanation>
   .action(async (url: string, options: any) => {
     spinner.start("Starting ⚙️");
