@@ -1,5 +1,11 @@
 # chromascope
 
+## 1.0.1
+
+### Patch Changes
+
+- 6b7c1e9: Fix outdated docs and more specific wording
+
 ## 1.0.0
 
 ### Major Changes
