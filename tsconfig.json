@@ -5,7 +5,8 @@
     "noEmit": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-    "strict": true
+    "strict": true,
+    "resolveJsonModule": true
   },
   "exclude": ["dist", "node_modules"]
 }
