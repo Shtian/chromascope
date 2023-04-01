@@ -43,8 +43,8 @@ cli
     logger.debug(`Run ID: ${ctx.runId}`);
 
     const result = await diff(url, ctx);
-    spinner.succeed();
-    logger.log("Diff Results:");
+    spinner.succeed("Diff complete 🎉");
+    logger.log("Results:");
     logger.log(JSON.stringify(result));
 
     process.exit(0);

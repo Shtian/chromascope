@@ -4,14 +4,36 @@ import { PNG } from "pngjs";
 import { ChromascopeContext } from "./context";
 import pixelmatch from "pixelmatch";
 import logger from "./logger";
+import { createSpinner } from "./spinner";
 
 export const diff = async (link: string, ctx: ChromascopeContext) => {
   logger.setOptions({ verbose: ctx.options.verbose });
 
-  // TODO: Run in parallel with promise.allSettled
-  const chromiumScreenshotPath = await diffChromium(link, ctx);
-  const webkitScreenshotPath = await diffWebkit(link, ctx);
-  const firefoxScreenshotPath = await diffFirefox(link, ctx);
+  const screenshots = [
+    screenshotChromium(link, ctx),
+    screenshotWebkit(link, ctx),
+    screenshotFirefox(link, ctx),
+  ];
+
+  const results = await Promise.allSettled(screenshots);
+
+  const [
+    chromiumScreenshotResult,
+    webkitScreenshotResult,
+    firefoxScreenshotResult,
+  ] = results;
+  const chromiumScreenshotPath =
+    chromiumScreenshotResult.status === "fulfilled"
+      ? chromiumScreenshotResult.value
+      : "";
+  const webkitScreenshotPath =
+    webkitScreenshotResult.status === "fulfilled"
+      ? webkitScreenshotResult.value
+      : "";
+  const firefoxScreenshotPath =
+    firefoxScreenshotResult.status === "fulfilled"
+      ? firefoxScreenshotResult.value
+      : "";
 
   const chromiumWebkitDiff = diffScreenshots(
     chromiumScreenshotPath,
@@ -42,25 +64,35 @@ export const diff = async (link: string, ctx: ChromascopeContext) => {
   return { webkit: chromiumWebkitDiff, firefox: chromiumFirefoxDiff };
 };
 
-const diffWebkit = async (link: string, ctx: ChromascopeContext) => {
-  ctx.spinner.text = "Diffing Webkit 📸";
+const screenshotWebkit = async (link: string, ctx: ChromascopeContext) => {
+  const webkitSpinner = createSpinner().start("Capturing WebKit screenshot 📷");
   const browser = await webkit.launch();
-  return await runBrowserDiff(link, browser, ctx);
+  const screenshotPath = await captureBrowserScreenshot(link, browser, ctx);
+  webkitSpinner.succeed("Captured WebKit screenshot 📸");
+  return screenshotPath;
 };
 
-const diffFirefox = async (link: string, ctx: ChromascopeContext) => {
-  ctx.spinner.text = "Diffing Firefox 📸";
+const screenshotFirefox = async (link: string, ctx: ChromascopeContext) => {
+  const firefoxSpinner = createSpinner().start(
+    "Capturing Firefox screenshot 📷"
+  );
   const browser = await firefox.launch();
-  return await runBrowserDiff(link, browser, ctx);
+  const screenshotPath = await captureBrowserScreenshot(link, browser, ctx);
+  firefoxSpinner.succeed("Captured Firefox screenshot 📸");
+  return screenshotPath;
 };
 
-const diffChromium = async (link: string, ctx: ChromascopeContext) => {
-  ctx.spinner.text = "Diffing Chromium 📸";
+const screenshotChromium = async (link: string, ctx: ChromascopeContext) => {
+  const chromiumSpinner = createSpinner().start(
+    "Capturing Chromium screenshot 📷"
+  );
   const browser = await chromium.launch();
-  return await runBrowserDiff(link, browser, ctx);
+  const screenshotPath = await captureBrowserScreenshot(link, browser, ctx);
+  chromiumSpinner.succeed("Captured Chromium screenshot 📸");
+  return screenshotPath;
 };
 
-const runBrowserDiff = async (
+const captureBrowserScreenshot = async (
   link: string,
   browser: Browser,
   ctx: ChromascopeContext
