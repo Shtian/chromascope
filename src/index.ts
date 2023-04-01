@@ -14,6 +14,11 @@ cli
     "diff <url>",
     "Diff the URL in chromium, firefox, and webkit. Using chromium as the base."
   )
+  .option(
+    "-e, --element <selector>",
+    "Diff only the element with the given selector"
+  )
+  .option("-f, --full-page", "Take a full page screenshot")
   .option("-v, --verbose", "Show more output")
   .option("-s, --save-diff", "Save generated diff as png")
   .option("-t, --threshold <threshold>", "Set the threshold for the diff", {
@@ -31,9 +36,10 @@ cli
       console.error("Please provide a valid url");
       process.exit(1);
     }
-
     const ctx = createChromascopeContext(options, spinner);
+
     logger.setOptions({ verbose: options.verbose });
+    logger.debug(`Options provided: ${JSON.stringify(options)}`);
 
     if (!url.startsWith("http")) {
       url = `https://${url}`;
@@ -68,7 +74,7 @@ cli.version(version);
 
     await cli.runMatchedCommand();
   } catch (error) {
-    spinner.fail();
+    spinner.fail("Failed");
     logger.error("Error running command: ", error);
     process.exit(1);
   }

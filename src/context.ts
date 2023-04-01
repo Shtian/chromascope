@@ -6,6 +6,8 @@ interface ChromascopeOptions {
   folder: string;
   runFolder: string;
   saveDiff: boolean;
+  element: string;
+  fullPage: boolean;
 }
 
 export interface ChromascopeContext {

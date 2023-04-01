@@ -112,7 +112,10 @@ const captureBrowserScreenshot = async (
     ? `${ctx.options.runFolder}/${name}.png`
     : undefined;
   logger.debug(`Saving ${name} screenshot to ${path}`);
-  const imageBuffer = await page.screenshot({ path, fullPage: true });
+
+  const imageBuffer = ctx.options.element
+    ? await page.locator(ctx.options.element).screenshot({ path })
+    : await page.screenshot({ path, fullPage: ctx.options.fullPage });
   return imageBuffer;
 };
 
@@ -128,9 +131,16 @@ const diffScreenshots = (
   const png1 = PNG.sync.read(screenshotOne);
   const png2 = PNG.sync.read(screenshotTwo);
 
-  const { width, height } = png1;
-  const diff = new PNG({ width, height });
-  const result = pixelmatch(png1.data, png2.data, diff.data, width, height, {
+  const { width: width1, height: height1 } = png1;
+  const { width: width2, height: height2 } = png2;
+
+  if (width1 !== width2 || height1 !== height2) {
+    throw new Error(
+      `Screenshots are not the same size.${width1}x${height1} vs ${width2}x${height2}`
+    );
+  }
+  const diff = new PNG({ width: width1, height: height1 });
+  const result = pixelmatch(png1.data, png2.data, diff.data, width1, height1, {
     threshold: ctx.options.threshold,
   });
 
@@ -141,6 +151,6 @@ const diffScreenshots = (
     fs.writeFileSync(diffPath, PNG.sync.write(diff));
   }
 
-  const pixelChangePercentage = (result / (width * height)) * 100;
+  const pixelChangePercentage = (result / (width1 * height1)) * 100;
   return { pixelChange: result, pixelChangePercentage, diffPath };
 };
