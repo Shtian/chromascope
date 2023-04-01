@@ -4,6 +4,7 @@ interface ChromascopeOptions {
   verbose: boolean;
   threshold: number;
   folder: string;
+  runFolder: string;
   saveDiff: boolean;
 }
 
@@ -21,7 +22,7 @@ export function createChromascopeContext(
   const ctx: ChromascopeContext = {
     runId,
     spinner,
-    options: { ...options, folder: `${options.folder}/${runId}` },
+    options: { ...options, runFolder: `${options.folder}/${runId}` },
   };
 
   return ctx;

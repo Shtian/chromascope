@@ -23,7 +23,7 @@ cli
     default: "chromascope-runs",
   })
   .action(async (url: string, options) => {
-    spinner.start("Diffing...");
+    spinner.start("Starting ⚙️");
     if (!url || !isUrl(url)) {
       spinner.fail();
       console.error("Please provide a valid url");
@@ -44,6 +44,7 @@ cli
     spinner.succeed();
     logger.log("Diff Results:");
     logger.log(JSON.stringify(result));
+
     process.exit(0);
   });
 

@@ -8,6 +8,7 @@ import logger from "./logger";
 export const diff = async (link: string, ctx: ChromascopeContext) => {
   logger.setOptions({ verbose: ctx.options.verbose });
 
+  // TODO: Run in parallel with promise.allSettled
   const chromiumScreenshotPath = await diffChromium(link, ctx);
   const webkitScreenshotPath = await diffWebkit(link, ctx);
   const firefoxScreenshotPath = await diffFirefox(link, ctx);
@@ -26,27 +27,35 @@ export const diff = async (link: string, ctx: ChromascopeContext) => {
   );
 
   if (!ctx.options.saveDiff) {
-    fs.rmdirSync(ctx.options.folder, { recursive: true });
+    ctx.spinner.text = "Cleaning up 🧹";
+    fs.rmdirSync(ctx.options.runFolder, { recursive: true });
+
+    const files = fs.readdirSync(ctx.options.folder);
+    if (files.length === 0) {
+      fs.rmdirSync(ctx.options.folder);
+    }
   }
 
-  ctx.spinner.clear();
+  ctx.spinner.text = "";
+
+  // TODO: Return diff as percentage
   return { webkit: chromiumWebkitDiff, firefox: chromiumFirefoxDiff };
 };
 
 const diffWebkit = async (link: string, ctx: ChromascopeContext) => {
-  ctx.spinner.text = "Diffing Webkit...";
+  ctx.spinner.text = "Diffing Webkit 📸";
   const browser = await webkit.launch();
   return await runBrowserDiff(link, browser, ctx);
 };
 
 const diffFirefox = async (link: string, ctx: ChromascopeContext) => {
-  ctx.spinner.text = "Diffing Firefox...";
+  ctx.spinner.text = "Diffing Firefox 📸";
   const browser = await firefox.launch();
   return await runBrowserDiff(link, browser, ctx);
 };
 
 const diffChromium = async (link: string, ctx: ChromascopeContext) => {
-  ctx.spinner.text = "Diffing Chromium...";
+  ctx.spinner.text = "Diffing Chromium 📸";
   const browser = await chromium.launch();
   return await runBrowserDiff(link, browser, ctx);
 };
@@ -61,7 +70,7 @@ const runBrowserDiff = async (
   const name = type.name();
   const page = await context.newPage();
   await page.goto(link);
-  const path = `${ctx.options.folder}/${name}.png`;
+  const path = `${ctx.options.runFolder}/${name}.png`;
   logger.debug(`Saving ${name} screenshot to ${path}`);
   await page.screenshot({ path });
   return path;
@@ -83,9 +92,9 @@ const diffScreenshots = (
   });
 
   if (ctx.options.saveDiff) {
-    ctx.spinner.text = `Saving ${outputName} diff...`;
+    ctx.spinner.text = `Saving ${outputName} diff 🗄️`;
     fs.writeFileSync(
-      `${ctx.options.folder}/diff-${outputName}.png`,
+      `${ctx.options.runFolder}/diff-${outputName}.png`,
       PNG.sync.write(diff)
     );
   }
