@@ -6,6 +6,10 @@ import pixelmatch from "pixelmatch";
 import logger from "./logger";
 import { createSpinner } from "./spinner";
 
+export type DiffResult = ReturnType<typeof diffScreenshots> & {
+  browserName: string;
+};
+
 export const diff = async (link: string, ctx: ChromascopeContext) => {
   logger.setOptions({ verbose: ctx.options.verbose });
 
@@ -60,8 +64,10 @@ export const diff = async (link: string, ctx: ChromascopeContext) => {
 
   ctx.spinner.text = "";
 
-  // TODO: Return diff as percentage
-  return { webkit: chromiumWebkitDiff, firefox: chromiumFirefoxDiff };
+  return [
+    { ...chromiumWebkitDiff, browserName: "🍎 WebKit" },
+    { ...chromiumFirefoxDiff, browserName: "🦊 Firefox" },
+  ];
 };
 
 const screenshotWebkit = async (link: string, ctx: ChromascopeContext) => {
@@ -123,12 +129,13 @@ const diffScreenshots = (
     threshold: ctx.options.threshold,
   });
 
+  let diffPath = "";
   if (ctx.options.saveDiff) {
+    diffPath = `${ctx.options.runFolder}/diff-${outputName}.png`;
     ctx.spinner.text = `Saving ${outputName} diff 🗄️`;
-    fs.writeFileSync(
-      `${ctx.options.runFolder}/diff-${outputName}.png`,
-      PNG.sync.write(diff)
-    );
+    fs.writeFileSync(diffPath, PNG.sync.write(diff));
   }
-  return result;
+
+  const pixelChangePercentage = (result / (width * height)) * 100;
+  return { pixelChange: result, pixelChangePercentage, diffPath };
 };

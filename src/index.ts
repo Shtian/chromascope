@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import cac from "cac";
 import { isUrl } from "./utils";
-import { diff } from "./diff";
+import { DiffResult, diff } from "./diff";
 import { version } from "../package.json";
 import { createChromascopeContext } from "./context";
 import logger from "./logger";
@@ -44,11 +44,20 @@ cli
 
     const result = await diff(url, ctx);
     spinner.succeed("Diff complete 🎉");
-    logger.log("Results:");
-    logger.log(JSON.stringify(result));
+    result.forEach(printResults);
 
     process.exit(0);
   });
+
+const printResults = (res: DiffResult) => {
+  logger.log(`┌─ ${res.browserName}`);
+  logger.log(
+    `${res.diffPath ? "├─" : "└─"} 👉 ${res.pixelChangePercentage.toFixed(
+      2
+    )}% pixel change compared to Chromium (${res.pixelChange}px)`
+  );
+  if (res.diffPath) logger.log(`└─ 👉 Visual diff stored at ${res.diffPath}`);
+};
 
 cli.help();
 cli.version(version);
