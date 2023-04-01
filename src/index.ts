@@ -22,14 +22,14 @@ cli
   .option("-v, --verbose", "Show more output")
   .option("-s, --save-diff", "Save generated diff as png")
   .option("-t, --threshold <threshold>", "Set the threshold for the diff", {
-    default: 0.1,
+    default: 0.2,
   })
   .option("-f, --folder <folder>", "Set the base folder for chromascope runs", {
     default: "chromascope-runs",
   })
   // TODO: Configure dimensions/full page screenshots
   // TODO: Option for mobile browsers
-  .action(async (url: string, options) => {
+  .action(async (url: string, options: any) => {
     spinner.start("Starting ⚙️");
     if (!url || !isUrl(url)) {
       spinner.fail();

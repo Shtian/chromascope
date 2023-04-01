@@ -5,11 +5,15 @@ import { ChromascopeContext } from "./context";
 import pixelmatch from "pixelmatch";
 import logger from "./logger";
 import { createSpinner } from "./spinner";
-import sharp from "sharp";
 
 export type DiffResult = Awaited<ReturnType<typeof diffScreenshots>> & {
   browserName: string;
 };
+
+export type ImageWithMetadata = Pick<
+  PNGWithMetadata,
+  "data" | "width" | "height"
+>;
 
 export const diff = async (link: string, ctx: ChromascopeContext) => {
   logger.setOptions({ verbose: ctx.options.verbose });
@@ -127,24 +131,32 @@ const diffScreenshots = async (
   ctx: ChromascopeContext
 ) => {
   if (!screenshotOne || !screenshotTwo) {
-    throw new Error("One of the screenshot buffers is null.");
+    throw new Error("Screenshot buffer cannot be null");
   }
-  const png1 = PNG.sync.read(screenshotOne);
-  const png2 = PNG.sync.read(screenshotTwo);
+  let png1: ImageWithMetadata = PNG.sync.read(screenshotOne);
+  let png2: ImageWithMetadata = PNG.sync.read(screenshotTwo);
 
-  const { width: width1, height: height1 } = png1;
-  const { width: width2, height: height2 } = png2;
+  const size = {
+    width: Math.max(png1.width, png2.width),
+    height: Math.max(png1.height, png2.height),
+  };
 
-  const maxWidth = Math.max(width1, width2);
-  const maxHeight = Math.max(height1, height2);
+  if (png1.width !== png2.width || png1.height !== png2.height) {
+    png1 = resize(png1, size);
+    png2 = resize(png2, size);
+  }
 
-  const buffer1 = await resize(png1, maxWidth, maxHeight);
-  const buffer2 = await resize(png2, maxWidth, maxHeight);
-
-  const diff = new PNG({ width: maxWidth, height: maxHeight });
-  const result = pixelmatch(buffer1, buffer2, diff.data, width1, height1, {
-    threshold: ctx.options.threshold,
-  });
+  const diff = new PNG({ width: size.width, height: size.height });
+  const result = pixelmatch(
+    png1.data,
+    png2.data,
+    diff.data,
+    size.width,
+    size.height,
+    {
+      threshold: ctx.options.threshold,
+    }
+  );
 
   let diffPath = "";
   if (ctx.options.saveDiff) {
@@ -153,23 +165,33 @@ const diffScreenshots = async (
     fs.writeFileSync(diffPath, PNG.sync.write(diff));
   }
 
-  const pixelChangePercentage = (result / (width1 * height1)) * 100;
+  const pixelChangePercentage = (result / (size.width * size.height)) * 100;
   return { pixelChange: result, pixelChangePercentage, diffPath };
 };
 
-const resize = async (
-  img: PNGWithMetadata,
-  toWidth: number,
-  toHeight: number
+const resize = (
+  image: ImageWithMetadata,
+  { width, height }: { width: number; height: number }
 ) => {
-  const { width, height } = img;
-  if (width === toWidth && height === toHeight) return img.data;
-  return await sharp(img.data)
-    .resize({
-      width: toWidth,
-      height: toHeight,
-      fit: "contain",
-      position: "left top",
-    })
-    .toBuffer();
+  if (image.width === width && image.height === height) return image;
+  logger.debug(`Resizing image to ${width}x${height}...`);
+  const buffer = new Uint8Array(width * height * 4);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const to = (y * width + x) * 4;
+      if (y < image.height && x < image.width) {
+        const from = (y * image.width + x) * 4;
+        buffer[to] = image.data[from];
+        buffer[to + 1] = image.data[from + 1];
+        buffer[to + 2] = image.data[from + 2];
+        buffer[to + 3] = image.data[from + 3];
+      } else {
+        buffer[to] = 0;
+        buffer[to + 1] = 0;
+        buffer[to + 2] = 0;
+        buffer[to + 3] = 0;
+      }
+    }
+  }
+  return { data: Buffer.from(buffer), width, height };
 };

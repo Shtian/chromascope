@@ -6,6 +6,7 @@
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
   "bin": "dist/index.js",
+  "type": "module",
   "exports": {
     ".": {
       "require": "./dist/index.js",
@@ -28,20 +29,19 @@
   },
   "devDependencies": {
     "@changesets/cli": "^2.26.1",
-    "@playwright/test": "^1.32.1",
     "@types/node": "^18.15.11",
     "@types/pixelmatch": "^5.2.4",
     "@types/pngjs": "^6.0.1",
-    "@types/uuid": "^9.0.1",
+    "tsup": "^6.7.0",
+    "typescript": "^5.0.3",
+    "vitest": "^0.29.8"
+  },
+  "dependencies": {
+    "@playwright/test": "^1.32.1",
     "cac": "^6.7.14",
     "ora": "^6.3.0",
     "pixelmatch": "^5.3.0",
     "playwright": "^1.32.1",
-    "pngjs": "^7.0.0",
-    "sharp": "^0.32.0",
-    "tsup": "^6.7.0",
-    "typescript": "^5.0.3",
-    "uuid": "^9.0.0",
-    "vitest": "^0.29.8"
+    "pngjs": "^7.0.0"
   }
 }
