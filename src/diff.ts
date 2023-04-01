@@ -1,12 +1,13 @@
 import fs from "fs";
 import { webkit, firefox, chromium, Browser } from "@playwright/test";
-import { PNG } from "pngjs";
+import { PNG, PNGWithMetadata } from "pngjs";
 import { ChromascopeContext } from "./context";
 import pixelmatch from "pixelmatch";
 import logger from "./logger";
 import { createSpinner } from "./spinner";
+import sharp from "sharp";
 
-export type DiffResult = ReturnType<typeof diffScreenshots> & {
+export type DiffResult = Awaited<ReturnType<typeof diffScreenshots>> & {
   browserName: string;
 };
 
@@ -39,13 +40,13 @@ export const diff = async (link: string, ctx: ChromascopeContext) => {
       ? firefoxScreenshotResult.value
       : null;
 
-  const chromiumWebkitDiff = diffScreenshots(
+  const chromiumWebkitDiff = await diffScreenshots(
     chromiumScreenshotPath,
     webkitScreenshotPath,
     "chromium-webkit",
     ctx
   );
-  const chromiumFirefoxDiff = diffScreenshots(
+  const chromiumFirefoxDiff = await diffScreenshots(
     chromiumScreenshotPath,
     firefoxScreenshotPath,
     "chromium-firefox",
@@ -119,7 +120,7 @@ const captureBrowserScreenshot = async (
   return imageBuffer;
 };
 
-const diffScreenshots = (
+const diffScreenshots = async (
   screenshotOne: Buffer | null,
   screenshotTwo: Buffer | null,
   outputName: string,
@@ -134,13 +135,14 @@ const diffScreenshots = (
   const { width: width1, height: height1 } = png1;
   const { width: width2, height: height2 } = png2;
 
-  if (width1 !== width2 || height1 !== height2) {
-    throw new Error(
-      `Screenshots are not the same size.${width1}x${height1} vs ${width2}x${height2}`
-    );
-  }
-  const diff = new PNG({ width: width1, height: height1 });
-  const result = pixelmatch(png1.data, png2.data, diff.data, width1, height1, {
+  const maxWidth = Math.max(width1, width2);
+  const maxHeight = Math.max(height1, height2);
+
+  const buffer1 = await resize(png1, maxWidth, maxHeight);
+  const buffer2 = await resize(png2, maxWidth, maxHeight);
+
+  const diff = new PNG({ width: maxWidth, height: maxHeight });
+  const result = pixelmatch(buffer1, buffer2, diff.data, width1, height1, {
     threshold: ctx.options.threshold,
   });
 
@@ -153,4 +155,21 @@ const diffScreenshots = (
 
   const pixelChangePercentage = (result / (width1 * height1)) * 100;
   return { pixelChange: result, pixelChangePercentage, diffPath };
+};
+
+const resize = async (
+  img: PNGWithMetadata,
+  toWidth: number,
+  toHeight: number
+) => {
+  const { width, height } = img;
+  if (width === toWidth && height === toHeight) return img.data;
+  return await sharp(img.data)
+    .resize({
+      width: toWidth,
+      height: toHeight,
+      fit: "contain",
+      position: "left top",
+    })
+    .toBuffer();
 };
