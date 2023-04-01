@@ -1,5 +1,11 @@
 # chromascope
 
+## 1.0.0
+
+### Major Changes
+
+- d1fa3ea: Fixed diffing of elements and linting/formatting added with Rome
+
 ## 0.3.0
 
 ### Minor Changes
