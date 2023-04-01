@@ -1,5 +1,11 @@
 # chromascope
 
+## 0.3.0
+
+### Minor Changes
+
+- 44ae210: Adds support for diffing elements on page, parallelizes the screenshot process and provides better result outputs
+
 ## 0.2.0
 
 ### Minor Changes
