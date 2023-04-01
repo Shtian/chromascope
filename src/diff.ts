@@ -29,15 +29,15 @@ export const diff = async (link: string, ctx: ChromascopeContext) => {
   const chromiumScreenshotPath =
     chromiumScreenshotResult.status === "fulfilled"
       ? chromiumScreenshotResult.value
-      : "";
+      : null;
   const webkitScreenshotPath =
     webkitScreenshotResult.status === "fulfilled"
       ? webkitScreenshotResult.value
-      : "";
+      : null;
   const firefoxScreenshotPath =
     firefoxScreenshotResult.status === "fulfilled"
       ? firefoxScreenshotResult.value
-      : "";
+      : null;
 
   const chromiumWebkitDiff = diffScreenshots(
     chromiumScreenshotPath,
@@ -73,9 +73,9 @@ export const diff = async (link: string, ctx: ChromascopeContext) => {
 const screenshotWebkit = async (link: string, ctx: ChromascopeContext) => {
   const webkitSpinner = createSpinner().start("Capturing WebKit screenshot 📷");
   const browser = await webkit.launch();
-  const screenshotPath = await captureBrowserScreenshot(link, browser, ctx);
+  const imageBuffer = await captureBrowserScreenshot(link, browser, ctx);
   webkitSpinner.succeed("Captured WebKit screenshot 📸");
-  return screenshotPath;
+  return imageBuffer;
 };
 
 const screenshotFirefox = async (link: string, ctx: ChromascopeContext) => {
@@ -83,9 +83,9 @@ const screenshotFirefox = async (link: string, ctx: ChromascopeContext) => {
     "Capturing Firefox screenshot 📷"
   );
   const browser = await firefox.launch();
-  const screenshotPath = await captureBrowserScreenshot(link, browser, ctx);
+  const imageBuffer = await captureBrowserScreenshot(link, browser, ctx);
   firefoxSpinner.succeed("Captured Firefox screenshot 📸");
-  return screenshotPath;
+  return imageBuffer;
 };
 
 const screenshotChromium = async (link: string, ctx: ChromascopeContext) => {
@@ -93,9 +93,9 @@ const screenshotChromium = async (link: string, ctx: ChromascopeContext) => {
     "Capturing Chromium screenshot 📷"
   );
   const browser = await chromium.launch();
-  const screenshotPath = await captureBrowserScreenshot(link, browser, ctx);
+  const imageBuffer = await captureBrowserScreenshot(link, browser, ctx);
   chromiumSpinner.succeed("Captured Chromium screenshot 📸");
-  return screenshotPath;
+  return imageBuffer;
 };
 
 const captureBrowserScreenshot = async (
@@ -108,20 +108,25 @@ const captureBrowserScreenshot = async (
   const name = type.name();
   const page = await context.newPage();
   await page.goto(link);
-  const path = `${ctx.options.runFolder}/${name}.png`;
+  const path = ctx.options.saveDiff
+    ? `${ctx.options.runFolder}/${name}.png`
+    : undefined;
   logger.debug(`Saving ${name} screenshot to ${path}`);
-  await page.screenshot({ path });
-  return path;
+  const imageBuffer = await page.screenshot({ path, fullPage: true });
+  return imageBuffer;
 };
 
 const diffScreenshots = (
-  screenshotOnePath: string,
-  screenshotTwoPath: string,
+  screenshotOne: Buffer | null,
+  screenshotTwo: Buffer | null,
   outputName: string,
   ctx: ChromascopeContext
 ) => {
-  const png1 = PNG.sync.read(fs.readFileSync(screenshotOnePath));
-  const png2 = PNG.sync.read(fs.readFileSync(screenshotTwoPath));
+  if (!screenshotOne || !screenshotTwo) {
+    throw new Error("One of the screenshot buffers is null.");
+  }
+  const png1 = PNG.sync.read(screenshotOne);
+  const png2 = PNG.sync.read(screenshotTwo);
 
   const { width, height } = png1;
   const diff = new PNG({ width, height });
