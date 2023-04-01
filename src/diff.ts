@@ -24,6 +24,11 @@ export const diff = async (link: string, ctx: ChromascopeContext) => {
     "chromium-firefox",
     ctx
   );
+
+  if (!ctx.options.saveDiff) {
+    fs.rmdirSync(ctx.options.folder, { recursive: true });
+  }
+
   ctx.spinner.clear();
   return { webkit: chromiumWebkitDiff, firefox: chromiumFirefoxDiff };
 };
