@@ -24,20 +24,24 @@ export const diff = async (link: string, ctx: ChromascopeContext) => {
     "chromium-firefox",
     ctx
   );
+  ctx.spinner.clear();
   return { webkit: chromiumWebkitDiff, firefox: chromiumFirefoxDiff };
 };
 
 const diffWebkit = async (link: string, ctx: ChromascopeContext) => {
+  ctx.spinner.text = "Diffing Webkit...";
   const browser = await webkit.launch();
   return await runBrowserDiff(link, browser, ctx);
 };
 
 const diffFirefox = async (link: string, ctx: ChromascopeContext) => {
+  ctx.spinner.text = "Diffing Firefox...";
   const browser = await firefox.launch();
   return await runBrowserDiff(link, browser, ctx);
 };
 
 const diffChromium = async (link: string, ctx: ChromascopeContext) => {
+  ctx.spinner.text = "Diffing Chromium...";
   const browser = await chromium.launch();
   return await runBrowserDiff(link, browser, ctx);
 };
@@ -74,6 +78,7 @@ const diffScreenshots = (
   });
 
   if (ctx.options.saveDiff) {
+    ctx.spinner.text = `Saving ${outputName} diff...`;
     fs.writeFileSync(
       `${ctx.options.folder}/diff-${outputName}.png`,
       PNG.sync.write(diff)

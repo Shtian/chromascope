@@ -5,6 +5,7 @@ import { diff } from "./diff";
 import { version } from "../package.json";
 import { createChromascopeContext } from "./context";
 import logger from "./logger";
+import spinner from "./spinner";
 
 const cli = cac();
 
@@ -22,12 +23,14 @@ cli
     default: "chromascope-runs",
   })
   .action(async (url: string, options) => {
+    spinner.start("Diffing...");
     if (!url || !isUrl(url)) {
+      spinner.fail();
       console.error("Please provide a valid url");
       process.exit(1);
     }
 
-    const ctx = createChromascopeContext(options);
+    const ctx = createChromascopeContext(options, spinner);
     logger.setOptions({ verbose: options.verbose });
 
     if (!url.startsWith("http")) {
@@ -38,6 +41,7 @@ cli
     logger.debug(`Run ID: ${ctx.runId}`);
 
     const result = await diff(url, ctx);
+    spinner.succeed();
     logger.log("Diff Results:");
     logger.log(JSON.stringify(result));
     process.exit(0);
@@ -52,6 +56,7 @@ cli.version(version);
 
     await cli.runMatchedCommand();
   } catch (error) {
+    spinner.fail();
     logger.error("Error running command: ", error);
     process.exit(1);
   }

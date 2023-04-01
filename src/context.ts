@@ -1,3 +1,5 @@
+import { Ora } from "ora";
+
 interface ChromascopeOptions {
   verbose: boolean;
   threshold: number;
@@ -7,13 +9,18 @@ interface ChromascopeOptions {
 
 export interface ChromascopeContext {
   runId: string;
+  spinner: Ora;
   options: ChromascopeOptions;
 }
 
-export function createChromascopeContext(options: ChromascopeOptions) {
+export function createChromascopeContext(
+  options: ChromascopeOptions,
+  spinner: Ora
+) {
   const runId = createRunId();
   const ctx: ChromascopeContext = {
     runId,
+    spinner,
     options: { ...options, folder: `${options.folder}/${runId}` },
   };
 
