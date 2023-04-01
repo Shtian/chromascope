@@ -10,51 +10,32 @@ export type DiffResult = Awaited<ReturnType<typeof diffScreenshots>> & {
   browserName: string;
 };
 
-export type ImageWithMetadata = Pick<
-  PNGWithMetadata,
-  "data" | "width" | "height"
->;
+export type ImageWithMetadata = Pick<PNGWithMetadata, "data" | "width" | "height">;
 
 export const diff = async (link: string, ctx: ChromascopeContext) => {
   logger.setOptions({ verbose: ctx.options.verbose });
 
-  const screenshots = [
-    screenshotChromium(link, ctx),
-    screenshotWebkit(link, ctx),
-    screenshotFirefox(link, ctx),
-  ];
+  const screenshots = [screenshotChromium(link, ctx), screenshotWebkit(link, ctx), screenshotFirefox(link, ctx)];
 
   const results = await Promise.allSettled(screenshots);
 
-  const [
-    chromiumScreenshotResult,
-    webkitScreenshotResult,
-    firefoxScreenshotResult,
-  ] = results;
+  const [chromiumScreenshotResult, webkitScreenshotResult, firefoxScreenshotResult] = results;
   const chromiumScreenshotPath =
-    chromiumScreenshotResult.status === "fulfilled"
-      ? chromiumScreenshotResult.value
-      : null;
-  const webkitScreenshotPath =
-    webkitScreenshotResult.status === "fulfilled"
-      ? webkitScreenshotResult.value
-      : null;
-  const firefoxScreenshotPath =
-    firefoxScreenshotResult.status === "fulfilled"
-      ? firefoxScreenshotResult.value
-      : null;
+    chromiumScreenshotResult.status === "fulfilled" ? chromiumScreenshotResult.value : null;
+  const webkitScreenshotPath = webkitScreenshotResult.status === "fulfilled" ? webkitScreenshotResult.value : null;
+  const firefoxScreenshotPath = firefoxScreenshotResult.status === "fulfilled" ? firefoxScreenshotResult.value : null;
 
   const chromiumWebkitDiff = await diffScreenshots(
     chromiumScreenshotPath,
     webkitScreenshotPath,
     "chromium-webkit",
-    ctx
+    ctx,
   );
   const chromiumFirefoxDiff = await diffScreenshots(
     chromiumScreenshotPath,
     firefoxScreenshotPath,
     "chromium-firefox",
-    ctx
+    ctx,
   );
 
   if (!ctx.options.saveDiff) {
@@ -84,9 +65,7 @@ const screenshotWebkit = async (link: string, ctx: ChromascopeContext) => {
 };
 
 const screenshotFirefox = async (link: string, ctx: ChromascopeContext) => {
-  const firefoxSpinner = createSpinner().start(
-    "Capturing Firefox screenshot 📷"
-  );
+  const firefoxSpinner = createSpinner().start("Capturing Firefox screenshot 📷");
   const browser = await firefox.launch();
   const imageBuffer = await captureBrowserScreenshot(link, browser, ctx);
   firefoxSpinner.succeed("Captured Firefox screenshot 📸");
@@ -94,28 +73,20 @@ const screenshotFirefox = async (link: string, ctx: ChromascopeContext) => {
 };
 
 const screenshotChromium = async (link: string, ctx: ChromascopeContext) => {
-  const chromiumSpinner = createSpinner().start(
-    "Capturing Chromium screenshot 📷"
-  );
+  const chromiumSpinner = createSpinner().start("Capturing Chromium screenshot 📷");
   const browser = await chromium.launch();
   const imageBuffer = await captureBrowserScreenshot(link, browser, ctx);
   chromiumSpinner.succeed("Captured Chromium screenshot 📸");
   return imageBuffer;
 };
 
-const captureBrowserScreenshot = async (
-  link: string,
-  browser: Browser,
-  ctx: ChromascopeContext
-) => {
+const captureBrowserScreenshot = async (link: string, browser: Browser, ctx: ChromascopeContext) => {
   const context = await browser.newContext();
   const type = browser.browserType();
   const name = type.name();
   const page = await context.newPage();
   await page.goto(link);
-  const path = ctx.options.saveDiff
-    ? `${ctx.options.runFolder}/${name}.png`
-    : undefined;
+  const path = ctx.options.saveDiff ? `${ctx.options.runFolder}/${name}.png` : undefined;
   logger.debug(`Saving ${name} screenshot to ${path}`);
 
   const imageBuffer = ctx.options.element
@@ -128,7 +99,7 @@ const diffScreenshots = async (
   screenshotOne: Buffer | null,
   screenshotTwo: Buffer | null,
   outputName: string,
-  ctx: ChromascopeContext
+  ctx: ChromascopeContext,
 ) => {
   if (!screenshotOne || !screenshotTwo) {
     throw new Error("Screenshot buffer cannot be null");
@@ -147,16 +118,9 @@ const diffScreenshots = async (
   }
 
   const diff = new PNG({ width: size.width, height: size.height });
-  const result = pixelmatch(
-    png1.data,
-    png2.data,
-    diff.data,
-    size.width,
-    size.height,
-    {
-      threshold: ctx.options.threshold,
-    }
-  );
+  const result = pixelmatch(png1.data, png2.data, diff.data, size.width, size.height, {
+    threshold: ctx.options.threshold,
+  });
 
   let diffPath = "";
   if (ctx.options.saveDiff) {
@@ -169,10 +133,7 @@ const diffScreenshots = async (
   return { pixelChange: result, pixelChangePercentage, diffPath };
 };
 
-const resize = (
-  image: ImageWithMetadata,
-  { width, height }: { width: number; height: number }
-) => {
+const resize = (image: ImageWithMetadata, { width, height }: { width: number; height: number }) => {
   if (image.width === width && image.height === height) return image;
   logger.debug(`Resizing image to ${width}x${height}...`);
   const buffer = new Uint8Array(width * height * 4);

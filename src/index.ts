@@ -10,14 +10,8 @@ import spinner from "./spinner";
 const cli = cac();
 
 cli
-  .command(
-    "diff <url>",
-    "Diff the URL in chromium, firefox, and webkit. Using chromium as the base."
-  )
-  .option(
-    "-e, --element <selector>",
-    "Diff only the element with the given selector"
-  )
+  .command("diff <url>", "Diff the URL in chromium, firefox, and webkit. Using chromium as the base.")
+  .option("-e, --element <selector>", "Diff only the element with the given selector")
   .option("-f, --full-page", "Take a full page screenshot")
   .option("-v, --verbose", "Show more output")
   .option("-s, --save-diff", "Save generated diff as png")
@@ -29,6 +23,7 @@ cli
   })
   // TODO: Configure dimensions/full page screenshots
   // TODO: Option for mobile browsers
+  // rome-ignore lint/suspicious/noExplicitAny: <explanation>
   .action(async (url: string, options: any) => {
     spinner.start("Starting ⚙️");
     if (!url || !isUrl(url)) {
@@ -58,9 +53,9 @@ cli
 const printResults = (res: DiffResult) => {
   logger.log(`┌─ ${res.browserName}`);
   logger.log(
-    `${res.diffPath ? "├─" : "└─"} 👉 ${res.pixelChangePercentage.toFixed(
-      2
-    )}% pixel change compared to Chromium (${res.pixelChange}px)`
+    `${res.diffPath ? "├─" : "└─"} 👉 ${res.pixelChangePercentage.toFixed(2)}% pixel change compared to Chromium (${
+      res.pixelChange
+    }px)`,
   );
   if (res.diffPath) logger.log(`└─ 👉 Visual diff stored at ${res.diffPath}`);
 };

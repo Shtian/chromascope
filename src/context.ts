@@ -16,10 +16,7 @@ export interface ChromascopeContext {
   options: ChromascopeOptions;
 }
 
-export function createChromascopeContext(
-  options: ChromascopeOptions,
-  spinner: Ora
-) {
+export function createChromascopeContext(options: ChromascopeOptions, spinner: Ora) {
   const runId = createRunId();
   const ctx: ChromascopeContext = {
     runId,

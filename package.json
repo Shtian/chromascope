@@ -4,7 +4,6 @@
   "description": "Diff the same page in different browsers",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
-  "types": "./dist/index.d.ts",
   "bin": "dist/index.js",
   "type": "module",
   "exports": {
@@ -16,8 +15,9 @@
   "private": false,
   "scripts": {
     "dev": "vitest",
-    "build": "tsup src/index.ts --format cjs,esm --dts --minify",
-    "lint": "tsc",
+    "build": "tsup src/index.ts --format cjs,esm --minify",
+    "lint": "rome check ./src",
+    "format": "rome format ./src --write",
     "test": "vitest run",
     "ci": "pnpm run lint && pnpm run test && pnpm run build",
     "release": "pnpm run ci && changeset publish"
@@ -32,6 +32,7 @@
     "@types/node": "^18.15.11",
     "@types/pixelmatch": "^5.2.4",
     "@types/pngjs": "^6.0.1",
+    "rome": "12.0.0",
     "tsup": "^6.7.0",
     "typescript": "^5.0.3",
     "vitest": "^0.29.8"
