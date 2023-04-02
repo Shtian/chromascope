@@ -1,5 +1,11 @@
 # chromascope
 
+## 1.0.3
+
+### Patch Changes
+
+- d502d06: Add clearer instructions for usage
+
 ## 1.0.2
 
 ### Patch Changes
