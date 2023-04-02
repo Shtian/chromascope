@@ -1,6 +1,6 @@
 {
   "name": "chromascope",
-  "version": "1.0.3",
+  "version": "1.1.0",
   "author": "Stian Haga",
   "license": "ISC",
   "description": "Visually compare the same URL or DOM element in different browsers, from the safety of the command line.",
