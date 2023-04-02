@@ -1,5 +1,6 @@
-import { describe, it, expect } from "vitest";
 import { isUrl } from "./utils";
+import { describe, expect, it } from "vitest";
+
 describe("utils", () => {
   it("should allow localhost urls", () => {
     const url = "http://localhost:3000";

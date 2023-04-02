@@ -1,10 +1,10 @@
-import fs from "fs";
-import { webkit, firefox, chromium, Browser } from "@playwright/test";
-import { PNG, PNGWithMetadata } from "pngjs";
 import { ChromascopeContext } from "../context";
-import pixelmatch from "pixelmatch";
 import logger from "../lib/logger";
 import { createSpinner } from "../lib/spinner";
+import { Browser, chromium, firefox, webkit } from "@playwright/test";
+import fs from "fs";
+import pixelmatch from "pixelmatch";
+import { PNG, PNGWithMetadata } from "pngjs";
 
 export type VisualDiffResult = Awaited<ReturnType<typeof diffScreenshots>> & {
   browserName: string;
