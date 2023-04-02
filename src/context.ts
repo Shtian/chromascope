@@ -7,6 +7,7 @@ export type ChromascopeOptions = {
   saveDiff: boolean;
   element: string;
   fullPage: boolean;
+  cookie: string;
 };
 
 export type ChromascopeContext = {
