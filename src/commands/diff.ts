@@ -37,7 +37,7 @@ export const diff = async (link: string, ctx: ChromascopeContext) => {
     ctx,
   );
 
-  if (!ctx.options.saveDiff) {
+  if (!ctx.options.saveDiff && fs.existsSync(ctx.options.folder) && fs.existsSync(ctx.runFolder)) {
     ctx.spinner.text = "Cleaning up 🧹";
     fs.rmdirSync(ctx.runFolder, { recursive: true });
 
@@ -93,14 +93,12 @@ const screenshotChromium = async (link: string, ctx: ChromascopeContext) => {
 
 const captureBrowserScreenshot = async (link: string, browser: Browser, ctx: ChromascopeContext) => {
   const context = await browser.newContext();
+  if (ctx.options.cookie) {
+    await context.addCookies(parseCookieOptions(ctx.options.cookie, link));
+  }
   const type = browser.browserType();
   const name = type.name();
   const page = await context.newPage();
-  const cookiesToAdd = parseCookieOptions(ctx.options.cookie, link);
-  if (cookiesToAdd.length > 0) {
-    logger.debug(`Adding cookies to ${name} context: ${JSON.stringify(cookiesToAdd)}`);
-    context.addCookies(parseCookieOptions(ctx.options.cookie, link));
-  }
   await page.goto(link);
   const path = ctx.options.saveDiff ? `${ctx.runFolder}/${name}.png` : undefined;
   logger.debug(`Saving ${name} screenshot to ${path}`);
