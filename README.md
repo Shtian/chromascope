@@ -8,32 +8,40 @@ Chromascope is a tool for visualizing the diff of a given URL between chromium, 
 
 ## Usage
 
+Can be installed globally with npm|pnpm|yarn or run directly with npx:
+
 ```bash
-$ npx chromascope --help
+npx chromascope <command> [options]
+```
+
+### Commands
+
+```bash
+$ chromascope --help
+chromascope/x.x.x
 
 Usage:
-  $ index.js <command> [options]
+  $ chromascope <command> [options]
 
 Commands:
   diff <url>  Diff the URL in chromium, firefox, and webkit. Using chromium as the base.
 
 For more info, run any command with the `--help` flag:
-  $ index.js diff --help
+  $ chromascope diff --help
 
 Options:
   -h, --help     Display this message
   -v, --version  Display version number
 ```
 
-### Commands
-
 #### Diff
 
 ```bash
-$ npx chromascope diff --help
+$ chromascope diff --help
+chromascope/x.x.x
 
 Usage:
-  $ npx chromascope diff <url>
+  $ chromascope diff <url>
 
 Options:
   -e, --element <selector>     Diff only the element with the given selector
