@@ -1,6 +1,7 @@
 import { ChromascopeContext } from "../context";
 import logger from "../lib/logger";
 import { createSpinner } from "../lib/spinner";
+import { parseCookieOptions } from "../lib/utils";
 import { Browser, chromium, firefox, webkit } from "@playwright/test";
 import fs from "fs";
 import pixelmatch from "pixelmatch";
@@ -95,6 +96,11 @@ const captureBrowserScreenshot = async (link: string, browser: Browser, ctx: Chr
   const type = browser.browserType();
   const name = type.name();
   const page = await context.newPage();
+  const cookiesToAdd = parseCookieOptions(ctx.options.cookie, link);
+  if (cookiesToAdd.length > 0) {
+    logger.debug(`Adding cookies to ${name} context: ${JSON.stringify(cookiesToAdd)}`);
+    context.addCookies(parseCookieOptions(ctx.options.cookie, link));
+  }
   await page.goto(link);
   const path = ctx.options.saveDiff ? `${ctx.runFolder}/${name}.png` : undefined;
   logger.debug(`Saving ${name} screenshot to ${path}`);
