@@ -7,7 +7,7 @@ import { createChromascopeContext } from "./context";
 import logger from "./logger";
 import spinner from "./spinner";
 
-const cli = cac();
+const cli = cac("chromascope");
 
 cli
   .command("diff <url>", "Diff the URL in chromium, firefox, and webkit. Using chromium as the base.")
