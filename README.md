@@ -8,7 +8,15 @@ Chromascope is a tool for visualizing the diff of a given URL between chromium, 
 
 ## Usage
 
-Can be installed globally with npm|pnpm|yarn or run directly with npx:
+Can be installed globally with pnpm|npm|yarn:
+
+```bash
+pnpm add -g chromascope
+npm i -g chromascope
+yarn global add chromascope
+```
+
+or run it directly with npx:
 
 ```bash
 npx chromascope <command> [options]
