@@ -1,5 +1,11 @@
 # chromascope
 
+## 1.1.1
+
+### Patch Changes
+
+- cd2dd50: Fixes cookieless runs
+
 ## 1.1.0
 
 ### Minor Changes
