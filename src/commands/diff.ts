@@ -1,15 +1,14 @@
 import fs from "fs";
 import { webkit, firefox, chromium, Browser } from "@playwright/test";
 import { PNG, PNGWithMetadata } from "pngjs";
-import { ChromascopeContext } from "./context";
+import { ChromascopeContext } from "../context";
 import pixelmatch from "pixelmatch";
-import logger from "./logger";
-import { createSpinner } from "./spinner";
+import logger from "../lib/logger";
+import { createSpinner } from "../lib/spinner";
 
-export type DiffResult = Awaited<ReturnType<typeof diffScreenshots>> & {
+export type VisualDiffResult = Awaited<ReturnType<typeof diffScreenshots>> & {
   browserName: string;
 };
-
 export type ImageWithMetadata = Pick<PNGWithMetadata, "data" | "width" | "height">;
 
 export const diff = async (link: string, ctx: ChromascopeContext) => {
@@ -39,7 +38,7 @@ export const diff = async (link: string, ctx: ChromascopeContext) => {
 
   if (!ctx.options.saveDiff) {
     ctx.spinner.text = "Cleaning up 🧹";
-    fs.rmdirSync(ctx.options.runFolder, { recursive: true });
+    fs.rmdirSync(ctx.runFolder, { recursive: true });
 
     const files = fs.readdirSync(ctx.options.folder);
     if (files.length === 0) {
@@ -49,10 +48,22 @@ export const diff = async (link: string, ctx: ChromascopeContext) => {
 
   ctx.spinner.text = "";
 
-  return [
+  const result: Array<VisualDiffResult> = [
     { ...chromiumWebKitDiff, browserName: "🍎 WebKit" },
     { ...chromiumFirefoxDiff, browserName: "🦊 Firefox" },
   ];
+
+  return result;
+};
+
+export const printResults = (res: VisualDiffResult) => {
+  logger.log(`┌─ ${res.browserName}`);
+  logger.log(
+    `${res.diffPath ? "├─" : "└─"} 👉 ${res.pixelChangePercentage.toFixed(2)}% pixel change compared to Chromium (${
+      res.pixelChange
+    }px)`,
+  );
+  if (res.diffPath) logger.log(`└─ 👉 Visual diff stored at ${res.diffPath}`);
 };
 
 const screenshotWebKit = async (link: string, ctx: ChromascopeContext) => {
@@ -85,7 +96,7 @@ const captureBrowserScreenshot = async (link: string, browser: Browser, ctx: Chr
   const name = type.name();
   const page = await context.newPage();
   await page.goto(link);
-  const path = ctx.options.saveDiff ? `${ctx.options.runFolder}/${name}.png` : undefined;
+  const path = ctx.options.saveDiff ? `${ctx.runFolder}/${name}.png` : undefined;
   logger.debug(`Saving ${name} screenshot to ${path}`);
 
   const imageBuffer = ctx.options.element
@@ -123,7 +134,7 @@ const diffScreenshots = async (
 
   let diffPath = "";
   if (ctx.options.saveDiff) {
-    diffPath = `${ctx.options.runFolder}/diff-${outputName}.png`;
+    diffPath = `${ctx.runFolder}/diff-${outputName}.png`;
     ctx.spinner.text = `Saving ${outputName} diff 🗄️`;
     fs.writeFileSync(diffPath, PNG.sync.write(diff));
   }

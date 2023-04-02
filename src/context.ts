@@ -1,27 +1,29 @@
 import { Ora } from "ora";
 
-interface ChromascopeOptions {
+export type ChromascopeOptions = {
   verbose: boolean;
   threshold: number;
   folder: string;
-  runFolder: string;
   saveDiff: boolean;
   element: string;
   fullPage: boolean;
-}
+};
 
-export interface ChromascopeContext {
+export type ChromascopeContext = {
   runId: string;
   spinner: Ora;
+  runFolder: string;
   options: ChromascopeOptions;
-}
+};
 
 export function createChromascopeContext(options: ChromascopeOptions, spinner: Ora) {
   const runId = createRunId();
+  const runFolder = `${options.folder}/${runId}`;
   const ctx: ChromascopeContext = {
     runId,
     spinner,
-    options: { ...options, runFolder: `${options.folder}/${runId}` },
+    runFolder,
+    options,
   };
 
   return ctx;

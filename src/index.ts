@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 import cac from "cac";
-import { isUrl } from "./utils";
-import { DiffResult, diff } from "./diff";
+import { isUrl } from "./lib/utils";
+import { diff, printResults } from "./commands/diff";
 import { version } from "../package.json";
 import { createChromascopeContext } from "./context";
-import logger from "./logger";
-import spinner from "./spinner";
+import logger from "./lib/logger";
+import spinner from "./lib/spinner";
 
 const cli = cac("chromascope");
 
@@ -21,8 +21,6 @@ cli
   .option("-f, --folder <folder>", "Set the base folder for chromascope runs", {
     default: "chromascope-runs",
   })
-  // TODO: Add option to configure browser dimensions
-  // TODO: Add option for mobile browsers
   // rome-ignore lint/suspicious/noExplicitAny: <explanation>
   .action(async (url: string, options: any) => {
     spinner.start("Starting ⚙️");
@@ -50,23 +48,12 @@ cli
     process.exit(0);
   });
 
-const printResults = (res: DiffResult) => {
-  logger.log(`┌─ ${res.browserName}`);
-  logger.log(
-    `${res.diffPath ? "├─" : "└─"} 👉 ${res.pixelChangePercentage.toFixed(2)}% pixel change compared to Chromium (${
-      res.pixelChange
-    }px)`,
-  );
-  if (res.diffPath) logger.log(`└─ 👉 Visual diff stored at ${res.diffPath}`);
-};
-
 cli.help();
 cli.version(version);
 
 (async () => {
   try {
     cli.parse(process.argv, { run: false });
-
     await cli.runMatchedCommand();
   } catch (error) {
     spinner.fail("Failed");
