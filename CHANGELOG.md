@@ -1,5 +1,11 @@
 # chromascope
 
+## 1.0.2
+
+### Patch Changes
+
+- 16ca368: Refactoring and adding missing package.json fields
+
 ## 1.0.1
 
 ### Patch Changes
