@@ -14,6 +14,7 @@ cli
   .option("-e, --element <selector>", "Diff only the element with the given selector")
   .option("-f, --full-page", "Take a full page screenshot")
   .option("-v, --verbose", "Show more output")
+  .option("-c, --cookie <cookie>", "Add one or more cookies to the context. Format: key=value;key2=value2")
   .option("-s, --save-diff", "Save generated diff as png")
   .option("-t, --threshold <threshold>", "Set the threshold for the diff", {
     default: 0.2,
