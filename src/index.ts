@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-import cac from "cac";
-import { isUrl } from "./lib/utils";
-import { diff, printResults } from "./commands/diff";
 import { version } from "../package.json";
+import { diff, printResults } from "./commands/diff";
 import { createChromascopeContext } from "./context";
 import logger from "./lib/logger";
 import spinner from "./lib/spinner";
+import { isUrl } from "./lib/utils";
+import cac from "cac";
 
 const cli = cac("chromascope");
 
