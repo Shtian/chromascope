@@ -1,5 +1,11 @@
 # chromascope
 
+## 1.1.0
+
+### Minor Changes
+
+- cad9a3b: Add optional cookie option
+
 ## 1.0.3
 
 ### Patch Changes
