@@ -55,6 +55,7 @@ Options:
   -e, --element <selector>     Diff only the element with the given selector
   -f, --full-page              Take a full page screenshot
   -v, --verbose                Show more output
+  -c, --cookie <cookie>        Add one or more cookies to the context. Format: key=value;key2=value2
   -s, --save-diff              Save generated diff as png
   -t, --threshold <threshold>  Set the threshold for the diff (default: 0.2)
   -f, --folder <folder>        Set the base folder for chromascope runs (default: chromascope-runs)
