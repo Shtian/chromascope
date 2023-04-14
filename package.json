@@ -1,12 +1,18 @@
 {
   "name": "chromascope",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "author": "Stian Haga",
   "license": "ISC",
   "description": "Visually compare the same URL or DOM element in different browsers, from the safety of the command line.",
   "keywords": [
-    "diff", "playwright", "cross-browser testing", "visual regression testing", "pixelmatch", "UI testing",
-    "screenshot comparison", "cli"
+    "diff",
+    "playwright",
+    "cross-browser testing",
+    "visual regression testing",
+    "pixelmatch",
+    "UI testing",
+    "screenshot comparison",
+    "cli"
   ],
   "repository": {
     "type": "git",
