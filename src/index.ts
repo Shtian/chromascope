@@ -58,7 +58,7 @@ cli.version(version);
     await cli.runMatchedCommand();
   } catch (error) {
     spinner.fail("Failed");
-    logger.error("Error running command: ", error);
+    logger.error(error);
     process.exit(1);
   }
 })();
