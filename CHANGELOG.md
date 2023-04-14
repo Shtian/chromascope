@@ -1,5 +1,11 @@
 # chromascope
 
+## 1.1.2
+
+### Patch Changes
+
+- 1d4e7b9: Run playwright install as a post install script
+
 ## 1.1.1
 
 ### Patch Changes
