@@ -116,7 +116,9 @@ const diffScreenshots = async (
   ctx: ChromascopeContext,
 ) => {
   if (!screenshotOne || !screenshotTwo) {
-    throw new Error("Screenshot buffer cannot be null");
+    throw new Error(
+      "One or more screenshot buffer is null. Make sure all browsers are installed by running `npx playwright install chromium webkit firefox`.",
+    );
   }
   let png1: ImageWithMetadata = PNG.sync.read(screenshotOne);
   let png2: ImageWithMetadata = PNG.sync.read(screenshotTwo);
