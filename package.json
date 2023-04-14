@@ -5,14 +5,8 @@
   "license": "ISC",
   "description": "Visually compare the same URL or DOM element in different browsers, from the safety of the command line.",
   "keywords": [
-    "diff",
-    "playwright",
-    "cross-browser testing",
-    "visual regression testing",
-    "pixelmatch",
-    "UI testing",
-    "screenshot comparison",
-    "cli"
+    "diff", "playwright", "cross-browser testing", "visual regression testing", "pixelmatch", "UI testing",
+    "screenshot comparison", "cli"
   ],
   "repository": {
     "type": "git",
@@ -40,7 +34,8 @@
     "format": "rome format ./src --write",
     "test": "vitest run",
     "ci": "pnpm run lint && pnpm run test && pnpm run build",
-    "release": "pnpm run ci && changeset publish"
+    "release": "pnpm run ci && changeset publish",
+    "postinstall": "echo 'Installing required playwright browsers...' && npx playwright install chromium webkit firefox"
   },
   "peerDependencies": {
     "playwright-core": "^1"
