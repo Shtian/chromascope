@@ -1,5 +1,5 @@
-import { isUrl, parseCookieOptions } from "./utils";
 import { describe, expect, it } from "vitest";
+import { isUrl, parseCookieOptions } from "./utils";
 
 describe("isUrl", () => {
   it("should allow localhost urls", () => {

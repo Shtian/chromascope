@@ -1,11 +1,11 @@
 #!/usr/bin/env node
+import cac from "cac";
 import { version } from "../package.json";
 import { diff, printResults } from "./commands/diff";
-import { createChromascopeContext } from "./context";
+import { ChromascopeOptions, createChromascopeContext } from "./context";
 import logger from "./lib/logger";
 import spinner from "./lib/spinner";
 import { isUrl } from "./lib/utils";
-import cac from "cac";
 
 const cli = cac("chromascope");
 
@@ -22,8 +22,7 @@ cli
   .option("-f, --folder <folder>", "Set the base folder for chromascope runs", {
     default: "chromascope-runs",
   })
-  // rome-ignore lint/suspicious/noExplicitAny: <explanation>
-  .action(async (url: string, options: any) => {
+  .action(async (url: string, options: ChromascopeOptions) => {
     spinner.start("Starting ⚙️");
     if (!url || !isUrl(url)) {
       spinner.fail();
@@ -35,14 +34,12 @@ cli
     logger.setOptions({ verbose: options.verbose });
     logger.debug(`Options provided: ${JSON.stringify(options)}`);
 
-    if (!url.startsWith("http")) {
-      url = `https://${url}`;
-    }
+    const httpsUrl = url.startsWith("http") ? url : `https://${url}`;
 
-    logger.debug(`Diffing URL: ${url}`);
+    logger.debug(`Diffing URL: ${httpsUrl}`);
     logger.debug(`Run ID: ${ctx.runId}`);
 
-    const result = await diff(url, ctx);
+    const result = await diff(httpsUrl, ctx);
     spinner.succeed("Diff complete 🎉");
     result.forEach(printResults);
 
