@@ -6,21 +6,20 @@ class Logger {
   constructor(options: Partial<LoggerOptions> = undefined) {
     this.setOptions(options);
   }
+
   setOptions(options: Partial<LoggerOptions>) {
     this.options = { ...this.options, ...options };
   }
-  // rome-ignore lint/suspicious/noExplicitAny: <explanation>
-  log(...args: any[]) {
+
+  log(...args: unknown[]) {
     console.log(...args);
   }
 
-  // rome-ignore lint/suspicious/noExplicitAny: <explanation>
-  error(...args: any[]) {
+  error(...args: unknown[]) {
     console.error(...args);
   }
 
-  // rome-ignore lint/suspicious/noExplicitAny: <explanation>
-  debug(...args: any[]) {
+  debug(...args: unknown[]) {
     if (this.options.verbose) {
       console.log(...args);
     }
