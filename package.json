@@ -32,7 +32,14 @@
       "import": "./dist/index.mjs"
     }
   },
+  "files": [
+    "dist"
+  ],
   "private": false,
+  "engines": {
+    "node": ">=22.12"
+  },
+  "packageManager": "pnpm@12.15.0",
   "scripts": {
     "dev": "vitest",
     "build": "tsup src/index.ts --format cjs,esm --minify",
@@ -49,7 +56,7 @@
   "devDependencies": {
     "@biomejs/biome": "1.2.2",
     "@changesets/cli": "^2.26.1",
-    "@types/node": "^18.15.11",
+    "@types/node": "^22.20.5",
     "@types/pixelmatch": "^5.2.4",
     "@types/pngjs": "^6.0.1",
     "tsup": "^6.7.0",
