@@ -4,7 +4,6 @@ import path from "node:path";
 
 const browsers = ["chromium", "firefox", "webkit"];
 
-/** Runs `playwright install` for the browsers chromascope uses. Resolves with the exit code. */
 export const installBrowsers = () => {
   const require = createRequire(import.meta.url);
   const playwrightCli = path.join(path.dirname(require.resolve("playwright/package.json")), "cli.js");

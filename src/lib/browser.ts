@@ -1,6 +1,5 @@
 import type { Browser, BrowserType } from "playwright";
 
-/** Launches a browser, runs `fn` with it, and always closes it afterwards. */
 export const withBrowser = async <T>(browserType: BrowserType, fn: (browser: Browser) => Promise<T>) => {
   const browser = await launch(browserType);
   try {

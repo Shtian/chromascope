@@ -17,7 +17,7 @@ export type ImageWithMetadata = Pick<PNGWithMetadata, "data" | "width" | "height
 export const diff = async (link: string, ctx: ChromascopeContext) => {
   logger.setOptions({ verbose: ctx.options.verbose });
 
-  const [chromiumScreenshot, webKitScreenshot, firefoxScreenshot] = await screenshotAll([
+  const [chromiumScreenshot, webKitScreenshot, firefoxScreenshot] = await allSettledOrThrow([
     screenshot(chromium, "Chromium", link, ctx),
     screenshot(webkit, "WebKit", link, ctx),
     screenshot(firefox, "Firefox", link, ctx),
@@ -42,7 +42,7 @@ export const diff = async (link: string, ctx: ChromascopeContext) => {
 };
 
 /** Waits for every screenshot to settle, so no browser is left running, then throws the first failure. */
-const screenshotAll = async (screenshots: Array<Promise<Buffer>>) => {
+const allSettledOrThrow = async (screenshots: Array<Promise<Buffer>>) => {
   const results = await Promise.allSettled(screenshots);
   const failed = results.find((result) => result.status === "rejected");
   if (failed) throw failed.reason;
