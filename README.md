@@ -52,6 +52,8 @@ Options:
 
 #### Diff
 
+A URL without a scheme gets `https://`, except for loopback hosts (`localhost`, `*.localhost`, `127.x.x.x` and `[::1]`), which get `http://`. So `chromascope diff localhost:3000` diffs `http://localhost:3000/`. Pass the scheme explicitly to override this.
+
 ```bash
 $ chromascope diff --help
 chromascope/x.x.x
@@ -64,8 +66,25 @@ Options:
   -f, --full-page              Take a full page screenshot
   -v, --verbose                Show more output
   -c, --cookie <cookie>        Add one or more cookies to the context. Format: key=value;key2=value2
-  -s, --save-diff              Save generated diff as png
+  -s, --save-diff              Save the screenshots and diffs as png in a new run folder inside --folder
   -t, --threshold <threshold>  Set the threshold for the diff (default: 0.2)
   -o, --folder <folder>        Set the base folder for chromascope runs (default: chromascope-runs)
+  --out <dir>                  Save the screenshots and diffs as png in exactly this folder, without a run folder
   -h, --help                   Display this message
 ```
+
+#### Artifacts
+
+By default nothing is written to disk. To keep the screenshots and diffs:
+
+- `-s, --save-diff` writes them to a new run folder, `<folder>/<run ID>`. The run ID is the local date and time plus a random suffix, like `20261028160312-a1b2c3`, so concurrent runs never share a folder.
+- `--out <dir>` writes them to exactly `<dir>`, creating it if needed and overwriting earlier files. Use it when you need a predictable path, for example in scripts or coding agents.
+
+Chromascope prints the absolute path of every file it writes. The file names are stable:
+
+| File                        | Contents                          |
+| --------------------------- | --------------------------------- |
+| `chromium.png`              | Chromium screenshot (the base)    |
+| `webkit.png`, `firefox.png` | WebKit and Firefox screenshots    |
+| `diff-chromium-webkit.png`  | Pixel diff of Chromium vs WebKit  |
+| `diff-chromium-firefox.png` | Pixel diff of Chromium vs Firefox |

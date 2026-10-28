@@ -52,11 +52,12 @@ describe("diff", () => {
       },
       ora({ isEnabled: false }),
     );
-    return { ctx, result: diff(server.url, ctx) };
+    return { ctx, result: diff(server.url, ctx).then((run) => run.result) };
   };
 
   it("should compare WebKit and Firefox against Chromium and clean up after itself", async () => {
-    const result = await run().result;
+    const { ctx, result: pending } = run();
+    const result = await pending;
 
     expect(result.map((r) => r.browserName)).toEqual(["🍎 WebKit", "🦊 Firefox"]);
     for (const r of result) {
@@ -64,7 +65,9 @@ describe("diff", () => {
       expect(r.pixelChangePercentage).toBeGreaterThanOrEqual(0);
       expect(r.pixelChangePercentage).toBeLessThanOrEqual(100);
       expect(r.diffPath).toBe("");
+      expect(r.screenshotPath).toBe("");
     }
+    expect(ctx.saveArtifacts).toBe(false);
     expect(server.cookies).toHaveLength(3);
     expect(listFiles(tempDir)).toEqual([]);
   });
@@ -73,8 +76,11 @@ describe("diff", () => {
     const { ctx, result } = run({ saveDiff: true });
     const [webkit, firefox] = await result;
 
-    expect(webkit.diffPath).toBe(`${ctx.runFolder}/diff-chromium-webkit.png`);
-    expect(firefox.diffPath).toBe(`${ctx.runFolder}/diff-chromium-firefox.png`);
+    expect(path.isAbsolute(ctx.runFolder)).toBe(true);
+    expect(webkit.diffPath).toBe(path.join(ctx.runFolder, "diff-chromium-webkit.png"));
+    expect(firefox.diffPath).toBe(path.join(ctx.runFolder, "diff-chromium-firefox.png"));
+    expect(webkit.screenshotPath).toBe(path.join(ctx.runFolder, "webkit.png"));
+    expect(firefox.screenshotPath).toBe(path.join(ctx.runFolder, "firefox.png"));
     expect(listFiles(ctx.runFolder)).toEqual([
       "chromium.png",
       "diff-chromium-firefox.png",

@@ -108,15 +108,37 @@ describe("diff", () => {
     expect(code).toBe(0);
 
     const [runId] = fs.readdirSync(path.join(tempDir, "out"));
-    expect(runId).toMatch(/^\d{14}$/);
-    expect(stdout).toContain(`Visual diff stored at out/${runId}/diff-chromium-webkit.png`);
-    expect(stdout).toContain(`Visual diff stored at out/${runId}/diff-chromium-firefox.png`);
-    expect(listFiles(path.join(tempDir, "out", runId))).toEqual([
+    expect(runId).toMatch(/^\d{14}-[\da-f]{6}$/);
+    const runFolder = path.join(fs.realpathSync(tempDir), "out", runId);
+    expect(stdout).toContain(`Screenshot stored at ${path.join(runFolder, "chromium.png")}`);
+    expect(stdout).toContain(`Screenshot stored at ${path.join(runFolder, "webkit.png")}`);
+    expect(stdout).toContain(`Visual diff stored at ${path.join(runFolder, "diff-chromium-webkit.png")}`);
+    expect(stdout).toContain(`Visual diff stored at ${path.join(runFolder, "diff-chromium-firefox.png")}`);
+    expect(listFiles(runFolder)).toEqual([
       "chromium.png",
       "diff-chromium-firefox.png",
       "diff-chromium-webkit.png",
       "firefox.png",
       "webkit.png",
     ]);
+  });
+
+  it("should save the artifacts in exactly the --out folder without --save-diff", async () => {
+    const { code, stdout } = await chromascope("diff", server.url, "--out", "artifacts/latest");
+    expect(code).toBe(0);
+
+    const outFolder = path.join(fs.realpathSync(tempDir), "artifacts", "latest");
+    expect(stdout).toContain(`Screenshot stored at ${path.join(outFolder, "chromium.png")}`);
+    expect(stdout).toContain(`Screenshot stored at ${path.join(outFolder, "firefox.png")}`);
+    expect(stdout).toContain(`Visual diff stored at ${path.join(outFolder, "diff-chromium-webkit.png")}`);
+    expect(stdout).toContain(`Visual diff stored at ${path.join(outFolder, "diff-chromium-firefox.png")}`);
+    expect(listFiles(outFolder)).toEqual([
+      "chromium.png",
+      "diff-chromium-firefox.png",
+      "diff-chromium-webkit.png",
+      "firefox.png",
+      "webkit.png",
+    ]);
+    expect(fs.existsSync(path.join(tempDir, "chromascope-runs"))).toBe(false);
   });
 });

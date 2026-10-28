@@ -2,44 +2,49 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { removeRunFolder } from "./run-folder";
+import type { ChromascopeOptions } from "../context";
+import { createRunFolder } from "./run-folder";
 
-describe("removeRunFolder", () => {
-  let baseFolder: string;
+const options = { folder: "unused" } as ChromascopeOptions;
+
+describe("createRunFolder", () => {
+  let tempDir: string;
 
   beforeEach(() => {
-    baseFolder = fs.mkdtempSync(path.join(os.tmpdir(), "chromascope-"));
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "chromascope-"));
   });
 
   afterEach(() => {
-    fs.rmSync(baseFolder, { recursive: true, force: true });
+    fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
-  it("should remove the run folder and its contents", () => {
-    const runFolder = path.join(baseFolder, "run-1");
-    fs.mkdirSync(runFolder);
-    fs.writeFileSync(path.join(runFolder, "chromium.png"), "");
-    fs.mkdirSync(path.join(baseFolder, "run-0"));
+  it("should create the run folder and the base folder", () => {
+    const runFolder = path.join(tempDir, "runs", "run-1");
 
-    removeRunFolder(runFolder, baseFolder);
+    createRunFolder({ runFolder, options });
 
-    expect(fs.existsSync(runFolder)).toBe(false);
-    expect(fs.existsSync(baseFolder)).toBe(true);
+    expect(fs.statSync(runFolder).isDirectory()).toBe(true);
   });
 
-  it("should remove the base folder when it ends up empty", () => {
-    const runFolder = path.join(baseFolder, "run-1");
+  it("should fail when the run folder already exists", () => {
+    const runFolder = path.join(tempDir, "run-1");
     fs.mkdirSync(runFolder);
 
-    removeRunFolder(runFolder, baseFolder);
-
-    expect(fs.existsSync(baseFolder)).toBe(false);
+    expect(() => createRunFolder({ runFolder, options })).toThrow("EEXIST");
   });
 
-  it("should do nothing when the folders don't exist", () => {
-    const missing = path.join(baseFolder, "missing");
+  it("should create the --out folder", () => {
+    const runFolder = path.join(tempDir, "a", "b");
 
-    expect(() => removeRunFolder(path.join(missing, "run-1"), missing)).not.toThrow();
-    expect(fs.existsSync(baseFolder)).toBe(true);
+    createRunFolder({ runFolder, options: { ...options, out: runFolder } });
+
+    expect(fs.statSync(runFolder).isDirectory()).toBe(true);
+  });
+
+  it("should reuse an existing --out folder", () => {
+    fs.writeFileSync(path.join(tempDir, "chromium.png"), "");
+
+    expect(() => createRunFolder({ runFolder: tempDir, options: { ...options, out: tempDir } })).not.toThrow();
+    expect(fs.readdirSync(tempDir)).toEqual(["chromium.png"]);
   });
 });

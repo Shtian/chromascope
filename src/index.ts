@@ -16,13 +16,14 @@ cli
   .option("-f, --full-page", "Take a full page screenshot")
   .option("-v, --verbose", "Show more output")
   .option("-c, --cookie <cookie>", "Add one or more cookies to the context. Format: key=value;key2=value2")
-  .option("-s, --save-diff", "Save generated diff as png")
+  .option("-s, --save-diff", "Save the screenshots and diffs as png in a new run folder inside --folder")
   .option("-t, --threshold <threshold>", "Set the threshold for the diff", {
     default: 0.2,
   })
   .option("-o, --folder <folder>", "Set the base folder for chromascope runs", {
     default: "chromascope-runs",
   })
+  .option("--out <dir>", "Save the screenshots and diffs as png in exactly this folder, without a run folder")
   .action(async (url: string, options: ChromascopeOptions) => {
     spinner.start("Starting ⚙️");
     const normalizedUrl = normalizeUrl(url ?? "");
@@ -39,9 +40,11 @@ cli
     logger.debug(`Diffing URL: ${normalizedUrl}`);
     logger.debug(`Run ID: ${ctx.runId}`);
 
+    if (ctx.saveArtifacts) logger.debug(`Run folder: ${ctx.runFolder}`);
+
     const result = await diff(normalizedUrl, ctx);
     spinner.succeed("Diff complete 🎉");
-    result.forEach(printResults);
+    printResults(result);
   });
 
 cli.command("install", "Install the chromium, firefox, and webkit browsers used by chromascope").action(async () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compareImages, formatResult, type ImageWithMetadata, resize } from "./image";
+import { compareImages, formatBaseResult, formatResult, type ImageWithMetadata, resize } from "./image";
 
 type Rgba = [number, number, number, number];
 
@@ -105,20 +105,35 @@ describe("compareImages", () => {
   });
 });
 
-describe("formatResult", () => {
-  it("should format the pixel change", () => {
-    expect(
-      formatResult({ browserName: "🦊 Firefox", pixelChange: 42, pixelChangePercentage: 1.23456, diffPath: "" }),
-    ).toEqual(["┌─ 🦊 Firefox", "└─ 👉 1.23% pixel change compared to Chromium (42px)"]);
+describe("formatBaseResult", () => {
+  it("should print nothing when the screenshot wasn't saved", () => {
+    expect(formatBaseResult("")).toEqual([]);
   });
 
-  it("should include the diff path when the diff was saved", () => {
-    expect(
-      formatResult({ browserName: "🍎 WebKit", pixelChange: 0, pixelChangePercentage: 0, diffPath: "runs/1/diff.png" }),
-    ).toEqual([
-      "┌─ 🍎 WebKit",
-      "├─ 👉 0.00% pixel change compared to Chromium (0px)",
-      "└─ 👉 Visual diff stored at runs/1/diff.png",
+  it("should print the base screenshot path", () => {
+    expect(formatBaseResult("/runs/1/chromium.png")).toEqual([
+      "┌─ 🌐 Chromium (base)",
+      "└─ 👉 Screenshot stored at /runs/1/chromium.png",
+    ]);
+  });
+});
+
+describe("formatResult", () => {
+  const result = { browserName: "🦊 Firefox", pixelChange: 42, pixelChangePercentage: 1.23456 };
+
+  it("should format the pixel change", () => {
+    expect(formatResult({ ...result, diffPath: "", screenshotPath: "" })).toEqual([
+      "┌─ 🦊 Firefox",
+      "└─ 👉 1.23% pixel change compared to Chromium (42px)",
+    ]);
+  });
+
+  it("should include the screenshot and diff paths when they were saved", () => {
+    expect(formatResult({ ...result, diffPath: "/runs/1/diff.png", screenshotPath: "/runs/1/firefox.png" })).toEqual([
+      "┌─ 🦊 Firefox",
+      "├─ 👉 1.23% pixel change compared to Chromium (42px)",
+      "├─ 👉 Screenshot stored at /runs/1/firefox.png",
+      "└─ 👉 Visual diff stored at /runs/1/diff.png",
     ]);
   });
 });
