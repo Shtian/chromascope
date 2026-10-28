@@ -104,6 +104,14 @@ describe("createOutput", () => {
     expect(stderr()).toBe("");
   });
 
+  it("should print no progress with --json", () => {
+    const { output, stderr } = setup({ tty: true, json: true });
+    output.step("Capturing chromium").succeed("Captured chromium");
+    output.info("Diff complete");
+    expect(stderr()).toBe("");
+    expect(output.json).toBe(true);
+  });
+
   it("should decorate progress with emoji on a terminal", () => {
     const { output, stderr, stdout } = setup({ tty: true });
     output.step("Capturing chromium", "📷").succeed("Captured chromium", "📸");

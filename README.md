@@ -74,6 +74,7 @@ Options:
   --base <browser>             Browser the others are compared against (default: chromium)
   -v, --verbose                Print debug output on stderr
   -q, --quiet                  Print no progress on stderr. Errors still print
+  --json                       Print the result, or the error, as one JSON document on stdout
   -s, --save-diff              Save the screenshots and diffs as png in a new run folder inside --folder
   -t, --threshold <threshold>  Set the threshold for the diff (default: 0.2)
   -o, --folder <folder>        Set the base folder for chromascope runs (default: chromascope-runs)
@@ -93,6 +94,69 @@ firefox 0.00% 0px /home/me/app/chromascope-runs/20261028160312-a1b2c3/diff-chrom
 ```
 
 Progress on stderr is plain too, one line per step. `-q, --quiet` silences progress completely; errors still print.
+
+#### JSON output
+
+`--json` prints exactly one JSON document on stdout, and no progress on stderr. The result of `diff` looks like this:
+
+```json
+{
+  "schemaVersion": 1,
+  "command": "diff",
+  "runId": "20261028160312-a1b2c3",
+  "url": "http://localhost:3000/",
+  "base": "chromium",
+  "options": {
+    "browsers": ["chromium", "webkit", "firefox"],
+    "element": null,
+    "fullPage": false,
+    "viewport": { "width": 1280, "height": 720 },
+    "deviceScaleFactor": 1,
+    "waitFor": null,
+    "waitUntil": "load",
+    "threshold": 0.2,
+    "timeout": 30000
+  },
+  "artifactsDir": "/home/me/app/chromascope-runs/20261028160312-a1b2c3",
+  "screenshots": {
+    "chromium": "/home/me/app/chromascope-runs/20261028160312-a1b2c3/chromium.png",
+    "webkit": "/home/me/app/chromascope-runs/20261028160312-a1b2c3/webkit.png",
+    "firefox": "/home/me/app/chromascope-runs/20261028160312-a1b2c3/firefox.png"
+  },
+  "comparisons": [
+    {
+      "browser": "webkit",
+      "pixelChange": 1104,
+      "pixelChangePercentage": 0.12,
+      "width": 1280,
+      "height": 720,
+      "diffPath": "/home/me/app/chromascope-runs/20261028160312-a1b2c3/diff-chromium-webkit.png"
+    }
+  ],
+  "timings": { "totalMs": 4210, "captureMs": { "chromium": 1830, "webkit": 2410, "firefox": 3950 } }
+}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `schemaVersion` | Version of this shape. Adding fields doesn't change it. Renaming or removing a field bumps it in a major release. |
+| `command` | The command that produced the document. |
+| `runId` | Unique ID of the run, also the name of its run folder. |
+| `url` | The URL that was captured, with the scheme chromascope picked. |
+| `base` | The base browser every comparison is measured against. |
+| `options` | The capture options and threshold used. Cookies are left out. |
+| `artifactsDir` | Absolute path of the folder with the images, or `null` when nothing was saved. |
+| `screenshots` | Absolute path of each browser's screenshot, or `null` when nothing was saved. |
+| `comparisons` | One entry per browser: changed pixels, their percentage of the compared size, that size, and the diff image (`null` when not saved). |
+| `timings` | Milliseconds for the whole run and for each browser's capture. |
+
+When a run fails, `--json` prints an error object instead:
+
+```json
+{ "schemaVersion": 1, "error": { "code": "INVALID_URL", "message": "…", "hint": "…" } }
+```
+
+The TypeScript types of these documents, `DiffResult` and `ErrorResult`, live in [`src/lib/result.ts`](src/lib/result.ts).
 
 #### Capture options
 

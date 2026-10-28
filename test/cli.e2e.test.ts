@@ -262,3 +262,99 @@ describe("capture options", () => {
     expect(stderr).toContain(message);
   });
 });
+
+/** Checks that a `--json` result of `diff` has every documented field with the documented type. */
+const expectDiffResultSchema = (result: Record<string, unknown>) => {
+  expect(result).toEqual({
+    schemaVersion: 1,
+    command: "diff",
+    runId: expect.stringMatching(/^\d{14}-[\da-f]{6}$/),
+    url: expect.any(String),
+    base: expect.any(String),
+    options: {
+      browsers: expect.any(Array),
+      element: expect.toBeOneOf([null, expect.any(String)]),
+      fullPage: expect.any(Boolean),
+      threshold: expect.any(Number),
+      viewport: { width: expect.any(Number), height: expect.any(Number) },
+      deviceScaleFactor: expect.any(Number),
+      timeout: expect.any(Number),
+      waitFor: expect.toBeOneOf([null, expect.any(String)]),
+      waitUntil: expect.any(String),
+    },
+    artifactsDir: expect.toBeOneOf([null, expect.any(String)]),
+    screenshots: expect.any(Object),
+    comparisons: expect.any(Array),
+    timings: { totalMs: expect.any(Number), captureMs: expect.any(Object) },
+  });
+  for (const comparison of result.comparisons as unknown[]) {
+    expect(comparison).toEqual({
+      browser: expect.any(String),
+      pixelChange: expect.any(Number),
+      pixelChangePercentage: expect.any(Number),
+      width: expect.any(Number),
+      height: expect.any(Number),
+      diffPath: expect.toBeOneOf([null, expect.any(String)]),
+    });
+  }
+};
+
+describe("--json", () => {
+  let server: FixtureServer;
+
+  beforeAll(async () => {
+    server = await startFixtureServer();
+  });
+
+  afterAll(async () => {
+    await server.close();
+  });
+
+  it("should print one JSON document with the result and no progress", async () => {
+    const { code, stdout, stderr } = await chromascope("diff", server.url, "--json", "--browsers", "chromium,webkit");
+    expect(code).toBe(0);
+    expect(stderr).toBe("");
+
+    const result = JSON.parse(stdout);
+    expectDiffResultSchema(result);
+    expect(result).toMatchObject({
+      url: server.url,
+      base: "chromium",
+      options: { browsers: ["chromium", "webkit"], element: null, viewport: { width: 1280, height: 720 } },
+      artifactsDir: null,
+      screenshots: { chromium: null, webkit: null },
+      comparisons: [{ browser: "webkit", width: 1280, height: 720, diffPath: null }],
+      timings: { captureMs: { chromium: expect.any(Number), webkit: expect.any(Number) } },
+    });
+  });
+
+  it("should list absolute paths that exist when the artifacts are saved", async () => {
+    const { code, stdout } = await chromascope("diff", server.url, "--json", "--out", "out", "--element", "#box");
+    expect(code).toBe(0);
+
+    const result = JSON.parse(stdout);
+    expectDiffResultSchema(result);
+    const outFolder = path.join(fs.realpathSync(tempDir), "out");
+    expect(result.artifactsDir).toBe(outFolder);
+    expect(result.options.element).toBe("#box");
+    const paths = [
+      ...Object.values(result.screenshots),
+      ...result.comparisons.map((comparison: { diffPath: string }) => comparison.diffPath),
+    ] as string[];
+    expect(paths).toHaveLength(5);
+    for (const file of paths) {
+      expect(path.isAbsolute(file)).toBe(true);
+      expect(fs.existsSync(file)).toBe(true);
+    }
+  });
+
+  it("should print a JSON error object when the run fails", async () => {
+    const { code, stdout, stderr } = await chromascope("diff", "not-a-url", "--json");
+    expect(code).not.toBe(0);
+    expect(JSON.parse(stdout)).toEqual({
+      schemaVersion: 1,
+      error: { code: expect.any(String), message: expect.any(String), hint: expect.any(String) },
+    });
+    expect(stderr).not.toBe("");
+  });
+});

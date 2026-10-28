@@ -4,7 +4,8 @@ import { version } from "../package.json";
 import { diff } from "./commands/diff";
 import { createChromascopeContext } from "./context";
 import { type CaptureFlags, parseBase, parseCaptureOptions } from "./lib/capture-options";
-import { formatDiffDecorated, formatDiffPlain } from "./lib/format";
+import { toChromascopeError, toErrorResult } from "./lib/errors";
+import { formatDiffDecorated, formatDiffPlain, formatJson } from "./lib/format";
 import { installBrowsers } from "./lib/install";
 import output from "./lib/output";
 import { normalizeUrl, parseThreshold } from "./lib/utils";
@@ -34,6 +35,7 @@ withCaptureOptions(
   .option("--base <browser>", "Browser the others are compared against", { default: "chromium" })
   .option("-v, --verbose", "Print debug output on stderr")
   .option("-q, --quiet", "Print no progress on stderr. Errors still print")
+  .option("--json", "Print the result, or the error, as one JSON document on stdout")
   .option("-s, --save-diff", "Save the screenshots and diffs as png in a new run folder inside --folder")
   .option("-t, --threshold <threshold>", "Set the threshold for the diff", {
     default: 0.2,
@@ -43,12 +45,9 @@ withCaptureOptions(
   })
   .option("--out <dir>", "Save the screenshots and diffs as png in exactly this folder, without a run folder")
   .action(async (url: string, options: CaptureFlags & Record<string, unknown>) => {
-    output.configure({ verbose: Boolean(options.verbose), quiet: Boolean(options.quiet) });
+    output.configure({ verbose: Boolean(options.verbose), quiet: Boolean(options.quiet), json: Boolean(options.json) });
     const normalizedUrl = normalizeUrl(url ?? "");
-    if (!normalizedUrl) {
-      output.error("Please provide a valid url");
-      process.exit(1);
-    }
+    if (!normalizedUrl) throw new Error("Please provide a valid url");
     const capture = parseCaptureOptions(options, { browsers: ["chromium", "webkit", "firefox"] });
     const ctx = createChromascopeContext({
       ...capture,
@@ -67,7 +66,9 @@ withCaptureOptions(
 
     const result = await diff(normalizedUrl, ctx);
     output.info("Diff complete", "🎉");
-    output.result(output.plain ? formatDiffPlain(result) : formatDiffDecorated(result));
+    output.result(
+      output.json ? formatJson(result) : output.plain ? formatDiffPlain(result) : formatDiffDecorated(result),
+    );
   });
 
 cli.command("install", "Install the chromium, firefox, and webkit browsers used by chromascope").action(async () => {
@@ -81,9 +82,14 @@ cli.version(version);
   try {
     cli.parse(process.argv, { run: false });
     await cli.runMatchedCommand();
-  } catch (error) {
-    output.error(error instanceof Error ? error.message : error);
-    output.debug(error);
-    process.exit(1);
+  } catch (thrown) {
+    const error = toChromascopeError(thrown);
+    // Parsing may have failed before a command configured the output, so look for the flags directly.
+    if (process.argv.includes("--json")) output.configure({ json: true });
+    if (process.argv.includes("--verbose")) output.configure({ verbose: true });
+    if (output.json) output.result(formatJson(toErrorResult(error)));
+    output.error(error.message);
+    output.debug(thrown);
+    process.exitCode = 1;
   }
 })();

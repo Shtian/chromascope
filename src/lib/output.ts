@@ -12,6 +12,8 @@ export type OutputOptions = {
   verbose: boolean;
   /** Print no progress on stderr. Errors still print. */
   quiet: boolean;
+  /** Results are one JSON document. Implies no progress. */
+  json: boolean;
 };
 
 export type Step = {
@@ -31,7 +33,8 @@ export const isPlain = (isTTY: boolean, { env, quiet }: { env: NodeJS.ProcessEnv
  * Progress, debug output and errors go to stderr.
  */
 export const createOutput = ({ stdout, stderr, env }: Streams = process) => {
-  let options: OutputOptions = { verbose: false, quiet: false };
+  let options: OutputOptions = { verbose: false, quiet: false, json: false };
+  const silent = () => options.quiet || options.json;
   const writeError = (...args: unknown[]) => stderr.write(`${formatWithOptions({ colors: false }, ...args)}\n`);
   const plainProgress = () => isPlain(Boolean(stderr.isTTY), { env, quiet: options.quiet });
   const withIcon = (text: string, icon?: string) => (icon ? `${text} ${icon}` : text);
@@ -39,6 +42,11 @@ export const createOutput = ({ stdout, stderr, env }: Streams = process) => {
   return {
     configure(next: Partial<OutputOptions>) {
       options = { ...options, ...next };
+    },
+
+    /** Whether results on stdout are one JSON document. */
+    get json() {
+      return options.json;
     },
 
     /** Whether results on stdout are plain text: one line per result, without emoji or box drawing. */
@@ -52,7 +60,7 @@ export const createOutput = ({ stdout, stderr, env }: Streams = process) => {
 
     /** Starts a progress step: a spinner on a terminal, a plain line otherwise, or nothing when quiet. */
     step(text: string, icon?: string): Step {
-      if (options.quiet) return { succeed: () => {}, fail: () => {} };
+      if (silent()) return { succeed: () => {}, fail: () => {} };
       if (plainProgress()) {
         writeError(text);
         return { succeed: (done) => writeError(done), fail: (failed) => writeError(failed) };
@@ -66,7 +74,7 @@ export const createOutput = ({ stdout, stderr, env }: Streams = process) => {
 
     /** A progress message that needs no spinner. */
     info(text: string, icon?: string) {
-      if (options.quiet) return;
+      if (silent()) return;
       if (plainProgress()) writeError(text);
       else ora({ stream: stderr, discardStdin: false }).succeed(withIcon(text, icon));
     },

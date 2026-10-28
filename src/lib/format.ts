@@ -1,19 +1,4 @@
-import type { BrowserComparison } from "../commands/diff";
-
-export type DiffRun = {
-  base: string;
-  /** Absolute path, or `""` when artifacts aren't saved. */
-  baseScreenshotPath: string;
-  comparisons: BrowserComparison[];
-};
-
-type FormattableResult = {
-  browser: string;
-  pixelChange: number;
-  pixelChangePercentage: number;
-  diffPath: string;
-  screenshotPath: string;
-};
+import type { DiffComparison, DiffResult } from "./result";
 
 const displayNames: Record<string, string> = {
   chromium: "🌐 Chromium",
@@ -23,30 +8,33 @@ const displayNames: Record<string, string> = {
 const displayName = (browser: string) => displayNames[browser] ?? browser;
 const plainName = (browser: string) => displayName(browser).replace(/^\S+ /, "");
 
-/** Lines for the base browser's screenshot. Empty when the screenshot wasn't saved. */
-export const formatBaseResult = (base: string, screenshotPath: string) =>
-  screenshotPath ? [`┌─ ${displayName(base)} (base)`, `└─ 👉 Screenshot stored at ${screenshotPath}`] : [];
+/** Draws a box: the title, then each detail on its own branch. */
+const box = (title: string, details: string[]) => [
+  `┌─ ${title}`,
+  ...details.map((detail, index) => `${index === details.length - 1 ? "└─" : "├─"} 👉 ${detail}`),
+];
 
-export const formatResult = (base: string, res: FormattableResult) => {
+/** Lines for the base browser's screenshot. Empty when the screenshot wasn't saved. */
+export const formatBaseResult = (base: string, screenshotPath: string | null | undefined) =>
+  screenshotPath ? box(`${displayName(base)} (base)`, [`Screenshot stored at ${screenshotPath}`]) : [];
+
+export const formatResult = (base: string, comparison: DiffComparison, screenshotPath?: string | null) => {
   const details = [
-    `👉 ${res.pixelChangePercentage.toFixed(2)}% pixel change compared to ${plainName(base)} (${res.pixelChange}px)`,
+    `${comparison.pixelChangePercentage.toFixed(2)}% pixel change compared to ${plainName(base)} (${comparison.pixelChange}px)`,
   ];
-  if (res.screenshotPath) details.push(`👉 Screenshot stored at ${res.screenshotPath}`);
-  if (res.diffPath) details.push(`👉 Visual diff stored at ${res.diffPath}`);
-  return [
-    `┌─ ${displayName(res.browser)}`,
-    ...details.map((detail, index) => `${index === details.length - 1 ? "└─" : "├─"} ${detail}`),
-  ];
+  if (screenshotPath) details.push(`Screenshot stored at ${screenshotPath}`);
+  if (comparison.diffPath) details.push(`Visual diff stored at ${comparison.diffPath}`);
+  return box(displayName(comparison.browser), details);
 };
 
 /** The decorated results for a terminal: a box per browser, with emoji. */
-export const formatDiffDecorated = ({ base, baseScreenshotPath, comparisons }: DiffRun) => [
-  ...formatBaseResult(base, baseScreenshotPath),
-  ...comparisons.flatMap((comparison) => formatResult(base, comparison)),
+export const formatDiffDecorated = ({ base, screenshots, comparisons }: DiffResult) => [
+  ...formatBaseResult(base, screenshots[base]),
+  ...comparisons.flatMap((comparison) => formatResult(base, comparison, screenshots[comparison.browser])),
 ];
 
 /** One line per comparison: browser, percentage, pixel count and, when saved, the diff path. */
-export const formatDiffPlain = ({ comparisons }: DiffRun) =>
+export const formatDiffPlain = ({ comparisons }: DiffResult) =>
   comparisons.map((comparison) =>
     [
       comparison.browser,
@@ -57,3 +45,6 @@ export const formatDiffPlain = ({ comparisons }: DiffRun) =>
       .filter(Boolean)
       .join(" "),
   );
+
+/** The result as one JSON document. */
+export const formatJson = (result: object) => [JSON.stringify(result, null, 2)];

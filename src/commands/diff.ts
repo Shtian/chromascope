@@ -6,57 +6,60 @@ import { capturePage } from "../lib/capture";
 import type { BrowserName } from "../lib/capture-options";
 import { compareImages } from "../lib/image";
 import output from "../lib/output";
+import { type DiffComparison, type DiffResult, SCHEMA_VERSION } from "../lib/result";
 import { createRunFolder } from "../lib/run-folder";
 
-export type BrowserComparison = {
-  browser: BrowserName;
-  pixelChange: number;
-  pixelChangePercentage: number;
-  /** Size of the compared canvas: the largest width and height of the two screenshots. */
-  width: number;
-  height: number;
-  /** Absolute paths, or `""` when artifacts aren't saved. */
-  diffPath: string;
-  screenshotPath: string;
-};
-
-export const diff = async (link: string, ctx: ChromascopeContext) => {
+export const diff = async (url: string, ctx: ChromascopeContext): Promise<DiffResult> => {
+  const started = performance.now();
   if (ctx.saveArtifacts) createRunFolder(ctx);
 
-  const { base, browsers } = ctx.options;
-  const [baseScreenshot, ...screenshots] = await allSettledOrThrow(
-    browsers.map((browser) => screenshot(browser, link, ctx)),
-  );
+  const { base, browsers, element, fullPage, viewport, deviceScaleFactor, waitFor, waitUntil, threshold, timeout } =
+    ctx.options;
+  const [baseCapture, ...captures] = await allSettledOrThrow(browsers.map((browser) => capture(browser, url, ctx)));
 
-  const comparisons: Array<BrowserComparison> = browsers.slice(1).map((browser, index) => ({
+  const comparisons: DiffComparison[] = browsers.slice(1).map((browser, index) => ({
     browser,
-    ...diffScreenshots(baseScreenshot, screenshots[index], `${base}-${browser}`, ctx),
-    screenshotPath: screenshotPath(browser, ctx),
+    ...diffScreenshots(baseCapture.image, captures[index].image, `${base}-${browser}`, ctx),
   }));
 
-  return { base, baseScreenshotPath: screenshotPath(base, ctx), comparisons };
+  return {
+    schemaVersion: SCHEMA_VERSION,
+    command: "diff",
+    runId: ctx.runId,
+    url,
+    base,
+    options: { browsers, element, fullPage, viewport, deviceScaleFactor, waitFor, waitUntil, threshold, timeout },
+    artifactsDir: ctx.saveArtifacts ? ctx.runFolder : null,
+    screenshots: Object.fromEntries(browsers.map((browser) => [browser, screenshotPath(browser, ctx)])),
+    comparisons,
+    timings: {
+      totalMs: Math.round(performance.now() - started),
+      captureMs: Object.fromEntries([baseCapture, ...captures].map((c) => [c.browser, c.ms])),
+    },
+  };
 };
 
-/** Absolute path of the browser's screenshot, or `""` when artifacts aren't saved. File names are stable. */
+/** Absolute path of the browser's screenshot, or `null` when artifacts aren't saved. File names are stable. */
 const screenshotPath = (browserName: string, ctx: ChromascopeContext) =>
-  ctx.saveArtifacts ? path.join(ctx.runFolder, `${browserName}.png`) : "";
+  ctx.saveArtifacts ? path.join(ctx.runFolder, `${browserName}.png`) : null;
 
-/** Waits for every screenshot to settle, so no browser is left running, then throws the first failure. */
-const allSettledOrThrow = async (screenshots: Array<Promise<Buffer>>) => {
-  const results = await Promise.allSettled(screenshots);
+/** Waits for every capture to settle, so no browser is left running, then throws the first failure. */
+const allSettledOrThrow = async <T>(captures: Array<Promise<T>>) => {
+  const results = await Promise.allSettled(captures);
   const failed = results.find((result) => result.status === "rejected");
   if (failed) throw failed.reason;
-  return results.map((result) => (result as PromiseFulfilledResult<Buffer>).value);
+  return results.map((result) => (result as PromiseFulfilledResult<T>).value);
 };
 
-const screenshot = async (browser: BrowserName, link: string, ctx: ChromascopeContext) => {
+const capture = async (browser: BrowserName, url: string, ctx: ChromascopeContext) => {
   const step = output.step(`Capturing ${browser} screenshot`, "📷");
+  const started = performance.now();
   try {
-    const path = screenshotPath(browser, ctx) || undefined;
+    const path = screenshotPath(browser, ctx) ?? undefined;
     if (path) output.debug(`Saving ${browser} screenshot to ${path}`);
-    const imageBuffer = await capturePage(browser, link, ctx.options, path);
+    const image = await capturePage(browser, url, ctx.options, path);
     step.succeed(`Captured ${browser} screenshot`, "📸");
-    return imageBuffer;
+    return { browser, image, ms: Math.round(performance.now() - started) };
   } catch (error) {
     step.fail(`Failed to capture ${browser} screenshot`);
     throw error;
@@ -70,7 +73,7 @@ const diffScreenshots = (screenshotOne: Buffer, screenshotTwo: Buffer, outputNam
     ctx.options.threshold,
   );
 
-  let diffPath = "";
+  let diffPath: string | null = null;
   if (ctx.saveArtifacts) {
     diffPath = path.join(ctx.runFolder, `diff-${outputName}.png`);
     output.debug(`Saving ${outputName} diff to ${diffPath}`);

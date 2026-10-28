@@ -39,6 +39,7 @@ Options:
   --base <browser>             Browser the others are compared against (default: chromium)
   -v, --verbose                Print debug output on stderr 
   -q, --quiet                  Print no progress on stderr. Errors still print 
+  --json                       Print the result, or the error, as one JSON document on stdout 
   -s, --save-diff              Save the screenshots and diffs as png in a new run folder inside --folder 
   -t, --threshold <threshold>  Set the threshold for the diff (default: 0.2)
   -o, --folder <folder>        Set the base folder for chromascope runs (default: chromascope-runs)
