@@ -261,6 +261,27 @@ Every printed artifact path is absolute. The file names are stable, so the scree
 | `<browser>.png`             | Screenshot of each captured browser, like `chromium.png`                          |
 | `diff-<base>-<browser>.png` | Pixel diff of a browser against the base browser, like `diff-chromium-webkit.png` |
 
+### Using chromascope from scripts and agents
+
+Chromascope never prompts for input, so CI jobs, scripts and coding agents can call it without a human watching. The contract:
+
+- **Results go to stdout, everything else to stderr.** Without a terminal, or under `CI`, `NO_COLOR` or `--quiet`, the output is plain, one line per comparison. See [Output](#output).
+- **`--json` prints one versioned JSON document**, or a JSON error object when the run fails. See [JSON output](#json-output).
+- **Exit codes have a meaning:** `0` within the threshold, `1` above `--fail-above`, `2` usage error, `3` runtime error. Every error has a stable code and a hint. See [Exit codes and errors](#exit-codes-and-errors).
+- **Artifacts have predictable paths.** `--out <dir>` writes the images to exactly `<dir>`, every printed path is absolute, and the file names are stable. See [Artifacts](#artifacts).
+- **`localhost` URLs default to `http://`**, so a local dev server needs no scheme.
+
+A worked example: diff a local page, read the JSON, open the diff image.
+
+```bash
+chromascope diff localhost:3000 --json --out /tmp/pricing-diff --fail-above 1 --timeout 10000 > result.json
+echo $?   # 0 within 1%, 1 above it, 2 for a wrong command, 3 if the page or a browser broke
+```
+
+`result.json` holds one document. Read `comparisons[].pixelChangePercentage` to decide whether a change matters, and open the file in `comparisons[].diffPath`, like `/tmp/pricing-diff/diff-chromium-webkit.png`, to see where the browsers differ. If the run fails, the document is `{ "schemaVersion": 1, "error": { "code", "message", "hint" } }`. Branch on `error.code` and follow the `hint`.
+
+To check a UI change in a single browser instead, see [Verify a UI change](#verify-a-ui-change).
+
 ### Verify a UI change
 
 `snapshot`, `compare` and `clean` check what a UI change did to a page, in the same browser. They're made for a local development session, by you or a coding agent: capture the page, change some CSS or a component, and confirm that only what you meant to change changed.
