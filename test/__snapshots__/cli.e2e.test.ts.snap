@@ -1,0 +1,39 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`help and version > should print the help 1`] = `
+"chromascope/<version>
+
+Usage:
+  $ chromascope <command> [options]
+
+Commands:
+  diff <url>  Diff the URL in chromium, firefox, and webkit. Using chromium as the base.
+  install     Install the chromium, firefox, and webkit browsers used by chromascope
+
+For more info, run any command with the \`--help\` flag:
+  $ chromascope diff --help
+  $ chromascope install --help
+
+Options:
+  -h, --help     Display this message 
+  -v, --version  Display version number 
+"
+`;
+
+exports[`help and version > should print the help for diff 1`] = `
+"chromascope/<version>
+
+Usage:
+  $ chromascope diff <url>
+
+Options:
+  -e, --element <selector>     Diff only the element with the given selector 
+  -f, --full-page              Take a full page screenshot 
+  -v, --verbose                Show more output 
+  -c, --cookie <cookie>        Add one or more cookies to the context. Format: key=value;key2=value2 
+  -s, --save-diff              Save generated diff as png 
+  -t, --threshold <threshold>  Set the threshold for the diff (default: 0.2)
+  -o, --folder <folder>        Set the base folder for chromascope runs (default: chromascope-runs)
+  -h, --help                   Display this message 
+"
+`;

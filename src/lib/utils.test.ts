@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isUrl, parseCookieOptions, parseThreshold } from "./utils";
+import { isUrl, normalizeUrl, parseCookieOptions, parseThreshold } from "./utils";
 
 describe("isUrl", () => {
   it("should allow localhost urls", () => {
@@ -33,6 +33,51 @@ describe("isUrl", () => {
   it("should not allow urls without a domain", () => {
     const url = "https://";
     expect(isUrl(url)).toBe(false);
+  });
+  it.each([
+    "http://127.0.0.1:8080",
+    "http://[::1]:3000/",
+    "localhost",
+    "localhost:3000/path",
+    "sub.domain.chromascope.dev",
+    "https://chromascope.dev/a/b?x=1&y=two%20words#top",
+    "HTTPS://CHROMASCOPE.DEV",
+  ])("should allow %j", (url) => {
+    expect(isUrl(url)).toBe(true);
+  });
+  it.each([
+    "",
+    "   ",
+    "chromascope",
+    "https://chromascope",
+    "chroma scope.dev",
+    "https://chroma scope.dev",
+    "ftp://chromascope.dev",
+    "file:///etc/passwd",
+    "javascript:alert(1)",
+    "mailto:me@chromascope.dev",
+    "http://",
+    "https://.",
+    "http:/chromascope.dev",
+    "-",
+  ])("should not allow %j", (url) => {
+    expect(isUrl(url)).toBe(false);
+  });
+});
+
+describe("normalizeUrl", () => {
+  it.each([
+    ["chromascope.dev", "https://chromascope.dev/"],
+    ["localhost:3000", "https://localhost:3000/"],
+    ["http://localhost:3000", "http://localhost:3000/"],
+    ["https://chromascope.dev/about?foo=bar#baz", "https://chromascope.dev/about?foo=bar#baz"],
+    ["httpbin.org", "https://httpbin.org/"],
+    ["  chromascope.dev  ", "https://chromascope.dev/"],
+  ])("should normalize %j to %j", (url, expected) => {
+    expect(normalizeUrl(url)).toBe(expected);
+  });
+  it("should return undefined for invalid urls", () => {
+    expect(normalizeUrl("not a url")).toBeUndefined();
   });
 });
 

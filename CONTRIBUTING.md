@@ -9,6 +9,18 @@ pnpm run ci   # lint, typecheck, test, build
 
 `pnpm install` also installs a pre-push git hook that checks your branch has a bump file.
 
+## Tests
+
+```bash
+pnpm test                # unit tests
+pnpm test:coverage       # unit tests with coverage thresholds (part of `pnpm run ci`)
+pnpm test:integration    # real browsers and the built CLI
+```
+
+Unit tests live next to the code in `src/`. Integration tests (`test/*.integration.test.ts`) run `diff` against a local fixture page in Chromium, Firefox, and WebKit. End-to-end tests (`test/*.e2e.test.ts`) build the CLI and spawn `dist/index.js`. Both need the browsers, so run `pnpm exec playwright install chromium firefox webkit` once first.
+
+Every test that writes files uses its own temp directory, so tests never write to the repo. If you change the CLI help, update the snapshots with `pnpm test:integration -u`.
+
 ## Releases
 
 Releases are managed with [bumpy](https://bumpy.varlock.dev). Every PR that changes `src/` or `package.json` needs a **bump file** in `.bumpy/` describing the change and its semver level:
