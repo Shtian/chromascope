@@ -1,18 +1,17 @@
 import path from "node:path";
-import type { Ora } from "ora";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { type ChromascopeOptions, createChromascopeContext, createRunId } from "./context";
+import { parseCaptureOptions } from "./lib/capture-options";
 
 const options: ChromascopeOptions = {
+  ...parseCaptureOptions({}, { browsers: ["chromium", "webkit"] }),
+  base: "chromium",
   verbose: false,
   threshold: 0.2,
+  failAbove: null,
   folder: "chromascope-runs",
   saveDiff: false,
-  element: "",
-  fullPage: false,
-  cookie: "",
 };
-const spinner = {} as Ora;
 
 describe("createRunId", () => {
   it("should start with the local date and time", () => {
@@ -41,15 +40,13 @@ describe("createChromascopeContext", () => {
   });
 
   it("should put the run folder inside the base folder as an absolute path", () => {
-    const ctx = createChromascopeContext({ ...options, folder: "out" }, spinner);
+    const ctx = createChromascopeContext({ ...options, folder: "out" });
     expect(ctx.runId).toMatch(/^20261231235959-[\da-f]{6}$/);
     expect(ctx.runFolder).toBe(path.resolve("out", ctx.runId));
   });
 
   it("should use --out as the run folder", () => {
-    expect(createChromascopeContext({ ...options, out: "artifacts" }, spinner).runFolder).toBe(
-      path.resolve("artifacts"),
-    );
+    expect(createChromascopeContext({ ...options, out: "artifacts" }).runFolder).toBe(path.resolve("artifacts"));
   });
 
   it.each([
@@ -58,12 +55,11 @@ describe("createChromascopeContext", () => {
     [{ out: "artifacts" }, true],
     [{ saveDiff: true, out: "artifacts" }, true],
   ])("should save artifacts for %j: %j", (overrides, expected) => {
-    expect(createChromascopeContext({ ...options, ...overrides }, spinner).saveArtifacts).toBe(expected);
+    expect(createChromascopeContext({ ...options, ...overrides }).saveArtifacts).toBe(expected);
   });
 
-  it("should keep the options and spinner", () => {
-    const ctx = createChromascopeContext(options, spinner);
+  it("should keep the options", () => {
+    const ctx = createChromascopeContext(options);
     expect(ctx.options).toBe(options);
-    expect(ctx.spinner).toBe(spinner);
   });
 });

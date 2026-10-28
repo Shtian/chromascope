@@ -9,7 +9,8 @@ export const installBrowsers = () => {
   const playwrightCli = path.join(path.dirname(require.resolve("playwright/package.json")), "cli.js");
 
   return new Promise<number>((resolve, reject) => {
-    spawn(process.execPath, [playwrightCli, "install", ...browsers], { stdio: "inherit" })
+    // Installing prints only progress, so all of it goes to stderr.
+    spawn(process.execPath, [playwrightCli, "install", ...browsers], { stdio: ["ignore", process.stderr, "inherit"] })
       .on("error", reject)
       .on("close", (code) => resolve(code ?? 1));
   });

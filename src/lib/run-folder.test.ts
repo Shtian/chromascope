@@ -2,10 +2,9 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { ChromascopeOptions } from "../context";
 import { createRunFolder } from "./run-folder";
 
-const options = { folder: "unused" } as ChromascopeOptions;
+const options = {};
 
 describe("createRunFolder", () => {
   let tempDir: string;

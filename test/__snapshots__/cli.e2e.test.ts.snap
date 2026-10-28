@@ -7,16 +7,105 @@ Usage:
   $ chromascope <command> [options]
 
 Commands:
-  diff <url>  Diff the URL in chromium, firefox, and webkit. Using chromium as the base.
-  install     Install the chromium, firefox, and webkit browsers used by chromascope
+  diff <url>      Capture the URL in several browsers and compare each against the base browser
+  snapshot <url>  Capture a baseline of the URL for a later compare
+  compare [url]   Capture the URL again and compare each browser against its baseline
+  clean [name]    Delete the baseline with this name, or every baseline
+  install         Install the chromium, firefox, and webkit browsers used by chromascope
 
 For more info, run any command with the \`--help\` flag:
   $ chromascope diff --help
+  $ chromascope snapshot --help
+  $ chromascope compare --help
+  $ chromascope clean --help
   $ chromascope install --help
 
 Options:
   -h, --help     Display this message 
   -v, --version  Display version number 
+
+Exit codes:
+  0  Success: every comparison is within --fail-above, or no --fail-above was given, or compare --update
+  1  At least one comparison is above --fail-above
+  2  Usage error: unknown command or option, missing or invalid argument
+  3  Runtime error: navigation failed, selector not found, timeout, browser or baseline missing
+
+Error codes:
+  Usage (exit 2):   INVALID_URL, INVALID_OPTION, INVALID_ARGUMENT, MISSING_ARGUMENT, UNKNOWN_COMMAND,
+                    INVALID_SELECTOR, CAPTURE_OPTION_CONFLICT
+  Runtime (exit 3): BROWSER_NOT_INSTALLED, NAVIGATION_FAILED, SELECTOR_TIMEOUT, BASELINE_NOT_FOUND,
+                    BASELINE_INVALID, UNKNOWN_ERROR
+"
+`;
+
+exports[`help and version > should print the help for clean 1`] = `
+"chromascope/<version>
+
+Usage:
+  $ chromascope clean [name]
+
+Options:
+  -v, --verbose         Print debug output on stderr 
+  -q, --quiet           Print no progress on stderr. Errors still print 
+  --json                Print the result, or the error, as one JSON document on stdout 
+  --baseline-dir <dir>  Folder the baselines are stored in (default: .chromascope/baselines) 
+  -h, --help            Display this message 
+
+Exit codes:
+  0  Success: every comparison is within --fail-above, or no --fail-above was given, or compare --update
+  1  At least one comparison is above --fail-above
+  2  Usage error: unknown command or option, missing or invalid argument
+  3  Runtime error: navigation failed, selector not found, timeout, browser or baseline missing
+
+Error codes:
+  Usage (exit 2):   INVALID_URL, INVALID_OPTION, INVALID_ARGUMENT, MISSING_ARGUMENT, UNKNOWN_COMMAND,
+                    INVALID_SELECTOR, CAPTURE_OPTION_CONFLICT
+  Runtime (exit 3): BROWSER_NOT_INSTALLED, NAVIGATION_FAILED, SELECTOR_TIMEOUT, BASELINE_NOT_FOUND,
+                    BASELINE_INVALID, UNKNOWN_ERROR
+"
+`;
+
+exports[`help and version > should print the help for compare 1`] = `
+"chromascope/<version>
+
+Usage:
+  $ chromascope compare [url]
+
+Options:
+  --browsers <list>            Comma separated browsers to capture (default: every browser of the baseline) 
+  -e, --element <selector>     Capture only the element with the given selector (default: the baseline's) 
+  -f, --full-page              Take a full page screenshot (default: the baseline's) 
+  --viewport <size>            Viewport size as <width>x<height> (default: the baseline's) 
+  --device-scale-factor <n>    Device scale factor, like 2 for retina screenshots (default: the baseline's) 
+  --timeout <ms>               Milliseconds each navigation, wait and capture may take (default: 30000) 
+  --wait-for <selector>        Wait for the selector to be visible before capturing (default: the baseline's) 
+  --wait-until <event>         Page load event to wait for: load, domcontentloaded or networkidle (default: the baseline's) 
+  --mask <selector>            Hide the elements matching the selector. Repeat it to mask more (default: the baseline's) 
+  -c, --cookie <cookie>        Add one or more cookies to the context. Format: key=value;key2=value2 
+  -v, --verbose                Print debug output on stderr 
+  -q, --quiet                  Print no progress on stderr. Errors still print 
+  --json                       Print the result, or the error, as one JSON document on stdout 
+  -t, --threshold <threshold>  Set the threshold for the diff (default: 0.2)
+  --fail-above <percent>       Exit with 1 when a browser's pixel change is above this percentage 
+  --baseline-dir <dir>         Folder the baselines are stored in (default: .chromascope/baselines) 
+  --name <name>                Baseline name. Without a URL, the baseline's URL is captured (default: derived from the URL and --element) 
+  --update                     Save the new capture as the baseline after comparing. Always exits with 0 
+  --clean                      Delete the baseline when the comparison exits with 0 
+  -o, --folder <folder>        Set the base folder for chromascope runs (default: chromascope-runs)
+  --out <dir>                  Save the before, after and diff images in exactly this folder, without a run folder 
+  -h, --help                   Display this message 
+
+Exit codes:
+  0  Success: every comparison is within --fail-above, or no --fail-above was given, or compare --update
+  1  At least one comparison is above --fail-above
+  2  Usage error: unknown command or option, missing or invalid argument
+  3  Runtime error: navigation failed, selector not found, timeout, browser or baseline missing
+
+Error codes:
+  Usage (exit 2):   INVALID_URL, INVALID_OPTION, INVALID_ARGUMENT, MISSING_ARGUMENT, UNKNOWN_COMMAND,
+                    INVALID_SELECTOR, CAPTURE_OPTION_CONFLICT
+  Runtime (exit 3): BROWSER_NOT_INSTALLED, NAVIGATION_FAILED, SELECTOR_TIMEOUT, BASELINE_NOT_FOUND,
+                    BASELINE_INVALID, UNKNOWN_ERROR
 "
 `;
 
@@ -27,14 +116,75 @@ Usage:
   $ chromascope diff <url>
 
 Options:
-  -e, --element <selector>     Diff only the element with the given selector 
+  --browsers <list>            Comma separated browsers to capture (default: chromium,webkit,firefox) 
+  -e, --element <selector>     Capture only the element with the given selector 
   -f, --full-page              Take a full page screenshot 
-  -v, --verbose                Show more output 
+  --viewport <size>            Viewport size as <width>x<height> (default: 1280x720) 
+  --device-scale-factor <n>    Device scale factor, like 2 for retina screenshots (default: 1) 
+  --timeout <ms>               Milliseconds each navigation, wait and capture may take (default: 30000) 
+  --wait-for <selector>        Wait for the selector to be visible before capturing 
+  --wait-until <event>         Page load event to wait for: load, domcontentloaded or networkidle (default: load) 
+  --mask <selector>            Hide the elements matching the selector. Repeat it to mask more 
   -c, --cookie <cookie>        Add one or more cookies to the context. Format: key=value;key2=value2 
-  -s, --save-diff              Save the screenshots and diffs as png in a new run folder inside --folder 
+  -v, --verbose                Print debug output on stderr 
+  -q, --quiet                  Print no progress on stderr. Errors still print 
+  --json                       Print the result, or the error, as one JSON document on stdout 
   -t, --threshold <threshold>  Set the threshold for the diff (default: 0.2)
+  --fail-above <percent>       Exit with 1 when a browser's pixel change is above this percentage 
+  --base <browser>             Browser the others are compared against (default: chromium)
+  -s, --save-diff              Save the screenshots and diffs as png in a new run folder inside --folder 
   -o, --folder <folder>        Set the base folder for chromascope runs (default: chromascope-runs)
   --out <dir>                  Save the screenshots and diffs as png in exactly this folder, without a run folder 
   -h, --help                   Display this message 
+
+Exit codes:
+  0  Success: every comparison is within --fail-above, or no --fail-above was given, or compare --update
+  1  At least one comparison is above --fail-above
+  2  Usage error: unknown command or option, missing or invalid argument
+  3  Runtime error: navigation failed, selector not found, timeout, browser or baseline missing
+
+Error codes:
+  Usage (exit 2):   INVALID_URL, INVALID_OPTION, INVALID_ARGUMENT, MISSING_ARGUMENT, UNKNOWN_COMMAND,
+                    INVALID_SELECTOR, CAPTURE_OPTION_CONFLICT
+  Runtime (exit 3): BROWSER_NOT_INSTALLED, NAVIGATION_FAILED, SELECTOR_TIMEOUT, BASELINE_NOT_FOUND,
+                    BASELINE_INVALID, UNKNOWN_ERROR
+"
+`;
+
+exports[`help and version > should print the help for snapshot 1`] = `
+"chromascope/<version>
+
+Usage:
+  $ chromascope snapshot <url>
+
+Options:
+  --browsers <list>          Comma separated browsers to capture (default: chromium) 
+  -e, --element <selector>   Capture only the element with the given selector 
+  -f, --full-page            Take a full page screenshot 
+  --viewport <size>          Viewport size as <width>x<height> (default: 1280x720) 
+  --device-scale-factor <n>  Device scale factor, like 2 for retina screenshots (default: 1) 
+  --timeout <ms>             Milliseconds each navigation, wait and capture may take (default: 30000) 
+  --wait-for <selector>      Wait for the selector to be visible before capturing 
+  --wait-until <event>       Page load event to wait for: load, domcontentloaded or networkidle (default: load) 
+  --mask <selector>          Hide the elements matching the selector. Repeat it to mask more 
+  -c, --cookie <cookie>      Add one or more cookies to the context. Format: key=value;key2=value2 
+  -v, --verbose              Print debug output on stderr 
+  -q, --quiet                Print no progress on stderr. Errors still print 
+  --json                     Print the result, or the error, as one JSON document on stdout 
+  --baseline-dir <dir>       Folder the baselines are stored in (default: .chromascope/baselines) 
+  --name <name>              Baseline name (default: derived from the URL and --element) 
+  -h, --help                 Display this message 
+
+Exit codes:
+  0  Success: every comparison is within --fail-above, or no --fail-above was given, or compare --update
+  1  At least one comparison is above --fail-above
+  2  Usage error: unknown command or option, missing or invalid argument
+  3  Runtime error: navigation failed, selector not found, timeout, browser or baseline missing
+
+Error codes:
+  Usage (exit 2):   INVALID_URL, INVALID_OPTION, INVALID_ARGUMENT, MISSING_ARGUMENT, UNKNOWN_COMMAND,
+                    INVALID_SELECTOR, CAPTURE_OPTION_CONFLICT
+  Runtime (exit 3): BROWSER_NOT_INSTALLED, NAVIGATION_FAILED, SELECTOR_TIMEOUT, BASELINE_NOT_FOUND,
+                    BASELINE_INVALID, UNKNOWN_ERROR
 "
 `;
