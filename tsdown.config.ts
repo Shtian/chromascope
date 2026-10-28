@@ -5,5 +5,6 @@ export default defineConfig({
   format: "esm",
   platform: "node",
   minify: true,
+  // Emit dist/index.js (not .mjs) to match `bin` in package.json.
   fixedExtension: false,
 });

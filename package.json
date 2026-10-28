@@ -41,7 +41,7 @@
     "ci": "pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run build",
     "prepare": "simple-git-hooks",
     "postinstall": "echo 'Installing required playwright browsers...' && npx playwright install chromium webkit firefox",
-    "typecheck": "tsc"
+    "typecheck": "tsc --noEmit"
   },
   "simple-git-hooks": {
     "pre-push": "[ ! -d .bumpy ] || pnpm exec bumpy check --hook pre-push"
