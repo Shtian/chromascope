@@ -274,8 +274,10 @@ Every printed artifact path is absolute. The file names are stable, so the scree
    ```
 
    ```
-   chromium 2.17% 434px 200x100->200x100 /home/me/app/chromascope-runs/20261028160312-a1b2c3/diff-chromium.png
+   chromium 2.17% 434px 200x100->200x100 same-size /home/me/app/chromascope-runs/20261028160312-a1b2c3/diff-chromium.png
    ```
+
+   Without a terminal, `compare` prints one plain line per browser: the browser, the pixel change percentage, the changed pixels, the before and after size as `<width>x<height>-><width>x<height>`, `same-size` or `size-changed`, and the absolute path of the diff image. In a terminal, each browser's box shows the same before and after size and whether it changed.
 
    `compare` captures the page again with the capture options stored in the baseline and compares each browser against its own baseline. It exits `0` when the change is within `--fail-above` (or without it), `1` above it. Every run writes `before-<browser>.png`, `after-<browser>.png` and `diff-<browser>.png` to a run folder (`--folder`, or exactly `--out`), so you can look at what changed. Use `--json` for the full result, including each browser's before and after size and a `sizeChanged` flag.
 

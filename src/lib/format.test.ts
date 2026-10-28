@@ -201,7 +201,7 @@ const compareResult = (comparisons: CompareComparison[]): CompareResult => ({
 });
 
 describe("formatComparePlain", () => {
-  it("should print one line per browser with the sizes and diff path", () => {
+  it("should print one line per browser with the sizes, a size marker and the diff path", () => {
     expect(
       formatComparePlain(
         compareResult([
@@ -210,17 +210,18 @@ describe("formatComparePlain", () => {
         ]),
       ),
     ).toEqual([
-      "chromium 2.17% 20000px 1280x720->1280x720 /runs/1/diff-chromium.png",
-      "firefox 2.17% 20000px 1280x720->1280x800 /runs/1/diff-chromium.png",
+      "chromium 2.17% 20000px 1280x720->1280x720 same-size /runs/1/diff-chromium.png",
+      "firefox 2.17% 20000px 1280x720->1280x800 size-changed /runs/1/diff-chromium.png",
     ]);
   });
 });
 
 describe("formatCompareDecorated", () => {
-  it("should print the change and the before, after and diff images", () => {
+  it("should print the change, the sizes and the before, after and diff images", () => {
     expect(formatCompareDecorated(compareResult([compareComparison()]))).toEqual([
       "┌─ 🌐 Chromium",
       "├─ 👉 2.17% pixel change compared to the baseline (20000px)",
+      "├─ 👉 Size 1280x720 before, 1280x720 after (unchanged)",
       "├─ 👉 Before stored at /runs/1/before-chromium.png",
       "├─ 👉 After stored at /runs/1/after-chromium.png",
       "└─ 👉 Visual diff stored at /runs/1/diff-chromium.png",
@@ -231,7 +232,7 @@ describe("formatCompareDecorated", () => {
     const lines = formatCompareDecorated(
       compareResult([compareComparison({ after: { width: 1280, height: 800 }, sizeChanged: true })]),
     );
-    expect(lines[2]).toBe("├─ 👉 Size changed from 1280x720 to 1280x800");
+    expect(lines[2]).toBe("├─ 👉 Size 1280x720 before, 1280x800 after (changed: the added area counts as changed)");
   });
 });
 

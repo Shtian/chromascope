@@ -98,7 +98,7 @@ describe("compare", () => {
     await chromascope("snapshot", server.url, "--browsers", "chromium,firefox");
     const { code, stdout } = await chromascope("compare", server.url);
     expect(code).toBe(0);
-    expect(stdout).toMatch(/^chromium 0\.00% 0px 1280x720->1280x720 \S+\nfirefox 0\.00% 0px 1280x720->1280x720 \S+\n$/);
+    expect(stdout).toMatch(/^chromium 0\.00% 0px 1280x720->1280x720 same-size \S+\nfirefox 0\.00% 0px 1280x720->1280x720 same-size \S+\n$/);
   });
 
   it("should exit 1 above --fail-above and keep the before, after and diff images", async () => {

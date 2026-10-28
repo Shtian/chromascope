@@ -57,7 +57,10 @@ export const formatSnapshotDecorated = ({ name, baselines }: SnapshotResult) =>
     box(displayName(browser), [`Baseline ${JSON.stringify(name)} stored at ${file}`]),
   );
 
-/** One line per browser: browser, percentage, pixel count, before and after size, and the diff path. */
+/**
+ * One line per browser: browser, percentage, pixel count, before and after size,
+ * `same-size` or `size-changed`, and the diff path.
+ */
 export const formatComparePlain = ({ comparisons }: CompareResult) =>
   comparisons.map((comparison) =>
     [
@@ -65,6 +68,7 @@ export const formatComparePlain = ({ comparisons }: CompareResult) =>
       `${comparison.pixelChangePercentage.toFixed(2)}%`,
       `${comparison.pixelChange}px`,
       `${size(comparison.before)}->${size(comparison.after)}`,
+      comparison.sizeChanged ? "size-changed" : "same-size",
       comparison.diffPath,
     ].join(" "),
   );
@@ -73,7 +77,7 @@ export const formatCompareDecorated = ({ comparisons }: CompareResult) =>
   comparisons.flatMap((comparison) =>
     box(displayName(comparison.browser), [
       `${comparison.pixelChangePercentage.toFixed(2)}% pixel change compared to the baseline (${comparison.pixelChange}px)`,
-      ...(comparison.sizeChanged ? [`Size changed from ${size(comparison.before)} to ${size(comparison.after)}`] : []),
+      `Size ${size(comparison.before)} before, ${size(comparison.after)} after (${comparison.sizeChanged ? "changed: the added area counts as changed" : "unchanged"})`,
       `Before stored at ${comparison.beforePath}`,
       `After stored at ${comparison.afterPath}`,
       `Visual diff stored at ${comparison.diffPath}`,
