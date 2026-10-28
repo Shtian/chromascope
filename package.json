@@ -43,8 +43,8 @@
   "scripts": {
     "dev": "vitest",
     "build": "tsup src/index.ts --format cjs,esm --minify",
-    "lint": "biome check ./src",
-    "format": "biome format ./src --write",
+    "lint": "biome check .",
+    "format": "biome format --write .",
     "test": "vitest run",
     "ci": "pnpm run lint && pnpm run test && pnpm run build",
     "prepare": "simple-git-hooks",
@@ -57,7 +57,7 @@
     "playwright-core": "^1"
   },
   "devDependencies": {
-    "@biomejs/biome": "1.2.2",
+    "@biomejs/biome": "2.6.3",
     "@types/node": "^22.20.5",
     "@types/pixelmatch": "^5.2.4",
     "@types/pngjs": "^6.0.1",
