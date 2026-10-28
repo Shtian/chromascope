@@ -130,13 +130,30 @@ export type Baseline = {
   has: (browser: BrowserName) => boolean;
 };
 
+/** The folder and its ancestors that don't exist yet. */
+const missingDirs = (dir: string): string[] => {
+  if (fs.existsSync(dir)) return [];
+  const parent = path.dirname(dir);
+  return parent === dir ? [dir] : [dir, ...missingDirs(parent)];
+};
+
+/**
+ * Creates the folder, and a `.gitignore` that ignores everything in each `.chromascope` folder it creates on the way.
+ * Existing folders, and folders with other names, get no `.gitignore`.
+ */
+const createRoot = (root: string) => {
+  const created = missingDirs(root).filter((dir) => path.basename(dir) === ".chromascope");
+  fs.mkdirSync(root, { recursive: true });
+  for (const dir of created) fs.writeFileSync(path.join(dir, ".gitignore"), "*\n");
+};
+
 /**
  * Stores baselines as `<root>/<name>/<browser>.png` plus `<root>/<name>/metadata.json`.
- * `root` defaults to `.chromascope/baselines`. Creating `.chromascope` also creates a `.gitignore` that ignores it all.
+ * `root` defaults to `.chromascope/baselines`. Creating a `.chromascope` folder also creates a `.gitignore` in it
+ * that ignores it all.
  */
 export const createBaselineStore = (baselineDir: string | undefined, cwd = process.cwd()) => {
   const root = path.resolve(cwd, baselineDir ?? DEFAULT_BASELINE_DIR);
-  const gitignoreDir = baselineDir === undefined ? path.resolve(cwd, ".chromascope") : null;
   const dirOf = (name: string) => path.join(root, name);
 
   /** Removes the folder and returns its path, or `null` when there was nothing to remove. */
@@ -151,10 +168,7 @@ export const createBaselineStore = (baselineDir: string | undefined, cwd = proce
 
     /** Replaces the baseline with this name: every image and the metadata. */
     write(name: string, metadata: BaselineMetadata, images: Partial<Record<BrowserName, Buffer>>) {
-      if (gitignoreDir && !fs.existsSync(gitignoreDir)) {
-        fs.mkdirSync(gitignoreDir, { recursive: true });
-        fs.writeFileSync(path.join(gitignoreDir, ".gitignore"), "*\n");
-      }
+      createRoot(root);
       const dir = dirOf(name);
       fs.rmSync(dir, { recursive: true, force: true });
       fs.mkdirSync(dir, { recursive: true });

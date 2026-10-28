@@ -202,6 +202,28 @@ describe("createBaselineStore", () => {
     ]);
   });
 
+  it.each([
+    [".chromascope/other", ".chromascope"],
+    ["nested/.chromascope/baselines", "nested/.chromascope"],
+    [".chromascope", ".chromascope"],
+  ])("should ignore a .chromascope folder it creates for --baseline-dir %j in git", (baselineDir, created) => {
+    createBaselineStore(baselineDir, tempDir).write("home", metadata, images);
+    expect(fs.readFileSync(path.join(tempDir, created, ".gitignore"), "utf8")).toBe("*\n");
+    expect(files().filter((file) => file.endsWith(".gitignore"))).toEqual([path.join(created, ".gitignore")]);
+  });
+
+  it("should leave an existing .chromascope folder alone with --baseline-dir", () => {
+    fs.mkdirSync(path.join(tempDir, ".chromascope"));
+    createBaselineStore(".chromascope/other", tempDir).write("home", metadata, images);
+    expect(fs.existsSync(path.join(tempDir, ".chromascope", ".gitignore"))).toBe(false);
+  });
+
+  it("should never touch the project's own .gitignore", () => {
+    fs.writeFileSync(path.join(tempDir, ".gitignore"), "node_modules\n");
+    createBaselineStore(undefined, tempDir).write("home", metadata, images);
+    expect(fs.readFileSync(path.join(tempDir, ".gitignore"), "utf8")).toBe("node_modules\n");
+  });
+
   it("should read back what was written", () => {
     const store = createBaselineStore("baselines", tempDir);
     store.write("home", metadata, images);

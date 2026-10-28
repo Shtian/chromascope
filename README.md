@@ -295,7 +295,7 @@ Things to know:
 - `compare` reuses the baseline's viewport, device scale factor, element, full page, waits and masks. Passing one of them with a different value is a usage error (`CAPTURE_OPTION_CONFLICT`, exit `2`); run `snapshot` again, or accept the new capture with `compare --update`, which stores the new options too and drops the browsers it didn't capture. `--cookie`, `--timeout`, `--threshold` and `--fail-above` can always be changed.
 - `--mask <selector>` hides dynamic parts of the page, like timestamps or ads, behind a solid box. Repeat it to mask several. It works for `diff` too.
 - When the page changes size, the smaller image is padded, so the added area counts as changed.
-- `--baseline-dir <dir>` stores the baselines somewhere else. Pass it to `snapshot`, `compare` and `clean` alike.
+- `--baseline-dir <dir>` stores the baselines somewhere else. Pass it to `snapshot`, `compare` and `clean` alike. Any `.chromascope` folder chromascope creates on the way, like for `--baseline-dir .chromascope/other`, gets a `.gitignore` too. Chromascope never edits your project's own `.gitignore`.
 - `clean` only deletes baselines, never run folders.
 
 The `compare` JSON uses the same versioned envelope as `diff`, with `"command": "compare"`. On top of the run ID, URL, capture options and timings, it has the baseline `name` and `baselineDir`, the run folder as `artifactsDir`, `updated` and `cleaned`, and per browser `pixelChange`, `pixelChangePercentage`, `before` and `after` sizes, `sizeChanged`, and absolute `beforePath`, `afterPath` and `diffPath`. Its TypeScript type, `CompareResult`, lives in [`src/lib/result.ts`](src/lib/result.ts) next to `SnapshotResult` and `CleanResult`.
