@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isUrl, normalizeUrl, parseCookieOptions, parseThreshold } from "./utils";
+import { isLoopbackHost, isUrl, normalizeUrl, parseCookieOptions, parseThreshold } from "./utils";
 
 describe("isUrl", () => {
   it("should allow localhost urls", () => {
@@ -68,8 +68,19 @@ describe("isUrl", () => {
 describe("normalizeUrl", () => {
   it.each([
     ["chromascope.dev", "https://chromascope.dev/"],
-    ["localhost:3000", "https://localhost:3000/"],
+    ["localhost:3000", "http://localhost:3000/"],
+    ["localhost", "http://localhost/"],
+    ["localhost:3000/about?foo=bar", "http://localhost:3000/about?foo=bar"],
+    ["127.0.0.1:8080", "http://127.0.0.1:8080/"],
+    ["127.1.2.3", "http://127.1.2.3/"],
+    ["[::1]:3000", "http://[::1]:3000/"],
+    ["app.localhost:5173", "http://app.localhost:5173/"],
     ["http://localhost:3000", "http://localhost:3000/"],
+    ["https://localhost:3000", "https://localhost:3000/"],
+    ["https://127.0.0.1", "https://127.0.0.1/"],
+    ["192.168.1.10:3000", "https://192.168.1.10:3000/"],
+    ["[::2]", "https://[::2]/"],
+    ["localhost.chromascope.dev", "https://localhost.chromascope.dev/"],
     ["https://chromascope.dev/about?foo=bar#baz", "https://chromascope.dev/about?foo=bar#baz"],
     ["httpbin.org", "https://httpbin.org/"],
     ["  chromascope.dev  ", "https://chromascope.dev/"],
@@ -79,6 +90,18 @@ describe("normalizeUrl", () => {
   it("should return undefined for invalid urls", () => {
     expect(normalizeUrl("not a url")).toBeUndefined();
   });
+});
+
+describe("isLoopbackHost", () => {
+  it.each(["localhost", "app.localhost", "127.0.0.1", "127.255.0.9", "[::1]"])("should treat %j as loopback", (host) => {
+    expect(isLoopbackHost(host)).toBe(true);
+  });
+  it.each(["chromascope.dev", "localhost.chromascope.dev", "128.0.0.1", "0.0.0.0", "[::2]", "mylocalhost"])(
+    "should not treat %j as loopback",
+    (host) => {
+      expect(isLoopbackHost(host)).toBe(false);
+    },
+  );
 });
 
 describe("parseCookieOptions", () => {

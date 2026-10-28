@@ -52,6 +52,8 @@ Options:
 
 #### Diff
 
+A URL without a scheme gets `https://`, except for loopback hosts (`localhost`, `*.localhost`, `127.x.x.x` and `[::1]`), which get `http://`. So `chromascope diff localhost:3000` diffs `http://localhost:3000/`. Pass the scheme explicitly to override this.
+
 ```bash
 $ chromascope diff --help
 chromascope/x.x.x
