@@ -3,9 +3,10 @@ import cac from "cac";
 import { version } from "../package.json";
 import { diff, printResults } from "./commands/diff";
 import { type ChromascopeOptions, createChromascopeContext } from "./context";
+import { installBrowsers } from "./lib/install";
 import logger from "./lib/logger";
 import spinner from "./lib/spinner";
-import { isUrl } from "./lib/utils";
+import { isUrl, parseThreshold } from "./lib/utils";
 
 const cli = cac("chromascope");
 
@@ -19,7 +20,7 @@ cli
   .option("-t, --threshold <threshold>", "Set the threshold for the diff", {
     default: 0.2,
   })
-  .option("-f, --folder <folder>", "Set the base folder for chromascope runs", {
+  .option("-o, --folder <folder>", "Set the base folder for chromascope runs", {
     default: "chromascope-runs",
   })
   .action(async (url: string, options: ChromascopeOptions) => {
@@ -29,7 +30,7 @@ cli
       console.error("Please provide a valid url");
       process.exit(1);
     }
-    const ctx = createChromascopeContext(options, spinner);
+    const ctx = createChromascopeContext({ ...options, threshold: parseThreshold(options.threshold) }, spinner);
 
     logger.setOptions({ verbose: options.verbose });
     logger.debug(`Options provided: ${JSON.stringify(options)}`);
@@ -42,9 +43,11 @@ cli
     const result = await diff(httpsUrl, ctx);
     spinner.succeed("Diff complete 🎉");
     result.forEach(printResults);
-
-    process.exit(0);
   });
+
+cli.command("install", "Install the chromium, firefox, and webkit browsers used by chromascope").action(async () => {
+  process.exitCode = await installBrowsers();
+});
 
 cli.help();
 cli.version(version);
@@ -55,7 +58,8 @@ cli.version(version);
     await cli.runMatchedCommand();
   } catch (error) {
     spinner.fail("Failed");
-    logger.error(error);
+    logger.error(error instanceof Error ? error.message : error);
+    logger.debug(error);
     process.exit(1);
   }
 })();

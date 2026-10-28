@@ -1,9 +1,11 @@
 import fs from "node:fs";
-import { type Browser, chromium, firefox, webkit } from "@playwright/test";
 import pixelmatch from "pixelmatch";
+import { type Browser, type BrowserType, chromium, firefox, webkit } from "playwright";
 import { PNG, type PNGWithMetadata } from "pngjs";
 import type { ChromascopeContext } from "../context";
+import { withBrowser } from "../lib/browser";
 import logger from "../lib/logger";
+import { removeRunFolder } from "../lib/run-folder";
 import { createSpinner } from "../lib/spinner";
 import { parseCookieOptions } from "../lib/utils";
 
@@ -15,36 +17,18 @@ export type ImageWithMetadata = Pick<PNGWithMetadata, "data" | "width" | "height
 export const diff = async (link: string, ctx: ChromascopeContext) => {
   logger.setOptions({ verbose: ctx.options.verbose });
 
-  const screenshots = [screenshotChromium(link, ctx), screenshotWebKit(link, ctx), screenshotFirefox(link, ctx)];
-  const results = await Promise.allSettled(screenshots);
-  const [chromiumScreenshotResult, webKitScreenshotResult, firefoxScreenshotResult] = results;
+  const [chromiumScreenshot, webKitScreenshot, firefoxScreenshot] = await allSettledOrThrow([
+    screenshot(chromium, "Chromium", link, ctx),
+    screenshot(webkit, "WebKit", link, ctx),
+    screenshot(firefox, "Firefox", link, ctx),
+  ]);
 
-  const chromiumScreenshotPath =
-    chromiumScreenshotResult.status === "fulfilled" ? chromiumScreenshotResult.value : null;
-  const webKitScreenshotPath = webKitScreenshotResult.status === "fulfilled" ? webKitScreenshotResult.value : null;
-  const firefoxScreenshotPath = firefoxScreenshotResult.status === "fulfilled" ? firefoxScreenshotResult.value : null;
+  const chromiumWebKitDiff = await diffScreenshots(chromiumScreenshot, webKitScreenshot, "chromium-webkit", ctx);
+  const chromiumFirefoxDiff = await diffScreenshots(chromiumScreenshot, firefoxScreenshot, "chromium-firefox", ctx);
 
-  const chromiumWebKitDiff = await diffScreenshots(
-    chromiumScreenshotPath,
-    webKitScreenshotPath,
-    "chromium-webkit",
-    ctx,
-  );
-  const chromiumFirefoxDiff = await diffScreenshots(
-    chromiumScreenshotPath,
-    firefoxScreenshotPath,
-    "chromium-firefox",
-    ctx,
-  );
-
-  if (!ctx.options.saveDiff && fs.existsSync(ctx.options.folder) && fs.existsSync(ctx.runFolder)) {
+  if (!ctx.options.saveDiff) {
     ctx.spinner.text = "Cleaning up 🧹";
-    fs.rmdirSync(ctx.runFolder, { recursive: true });
-
-    const files = fs.readdirSync(ctx.options.folder);
-    if (files.length === 0) {
-      fs.rmdirSync(ctx.options.folder);
-    }
+    removeRunFolder(ctx.runFolder, ctx.options.folder);
   }
 
   ctx.spinner.text = "";
@@ -57,6 +41,14 @@ export const diff = async (link: string, ctx: ChromascopeContext) => {
   return result;
 };
 
+/** Waits for every screenshot to settle, so no browser is left running, then throws the first failure. */
+const allSettledOrThrow = async (screenshots: Array<Promise<Buffer>>) => {
+  const results = await Promise.allSettled(screenshots);
+  const failed = results.find((result) => result.status === "rejected");
+  if (failed) throw failed.reason;
+  return results.map((result) => (result as PromiseFulfilledResult<Buffer>).value);
+};
+
 export const printResults = (res: VisualDiffResult) => {
   logger.log(`┌─ ${res.browserName}`);
   logger.log(
@@ -67,28 +59,16 @@ export const printResults = (res: VisualDiffResult) => {
   if (res.diffPath) logger.log(`└─ 👉 Visual diff stored at ${res.diffPath}`);
 };
 
-const screenshotWebKit = async (link: string, ctx: ChromascopeContext) => {
-  const webKitSpinner = createSpinner().start("Capturing WebKit screenshot 📷");
-  const browser = await webkit.launch();
-  const imageBuffer = await captureBrowserScreenshot(link, browser, ctx);
-  webKitSpinner.succeed("Captured WebKit screenshot 📸");
-  return imageBuffer;
-};
-
-const screenshotFirefox = async (link: string, ctx: ChromascopeContext) => {
-  const firefoxSpinner = createSpinner().start("Capturing Firefox screenshot 📷");
-  const browser = await firefox.launch();
-  const imageBuffer = await captureBrowserScreenshot(link, browser, ctx);
-  firefoxSpinner.succeed("Captured Firefox screenshot 📸");
-  return imageBuffer;
-};
-
-const screenshotChromium = async (link: string, ctx: ChromascopeContext) => {
-  const chromiumSpinner = createSpinner().start("Capturing Chromium screenshot 📷");
-  const browser = await chromium.launch();
-  const imageBuffer = await captureBrowserScreenshot(link, browser, ctx);
-  chromiumSpinner.succeed("Captured Chromium screenshot 📸");
-  return imageBuffer;
+const screenshot = async (browserType: BrowserType, displayName: string, link: string, ctx: ChromascopeContext) => {
+  const browserSpinner = createSpinner().start(`Capturing ${displayName} screenshot 📷`);
+  try {
+    const imageBuffer = await withBrowser(browserType, (browser) => captureBrowserScreenshot(link, browser, ctx));
+    browserSpinner.succeed(`Captured ${displayName} screenshot 📸`);
+    return imageBuffer;
+  } catch (error) {
+    browserSpinner.fail(`Failed to capture ${displayName} screenshot`);
+    throw error;
+  }
 };
 
 const captureBrowserScreenshot = async (link: string, browser: Browser, ctx: ChromascopeContext) => {
@@ -110,16 +90,11 @@ const captureBrowserScreenshot = async (link: string, browser: Browser, ctx: Chr
 };
 
 const diffScreenshots = async (
-  screenshotOne: Buffer | null,
-  screenshotTwo: Buffer | null,
+  screenshotOne: Buffer,
+  screenshotTwo: Buffer,
   outputName: string,
   ctx: ChromascopeContext,
 ) => {
-  if (!screenshotOne || !screenshotTwo) {
-    throw new Error(
-      "One or more screenshot buffer is null. Make sure all browsers are installed by running `npx playwright install chromium webkit firefox`.",
-    );
-  }
   let png1: ImageWithMetadata = PNG.sync.read(screenshotOne);
   let png2: ImageWithMetadata = PNG.sync.read(screenshotTwo);
 
