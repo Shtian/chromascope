@@ -20,3 +20,4 @@ Single-context: one `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/age
 - **Lint fixes**: `pnpm exec biome check --write .` fixes formatting and import order together; `pnpm format` only fixes formatting.
 - **Browser tests**: `pnpm test:integration` sits outside `ci` and runs real browsers plus the built CLI. Run it when changing `src/commands/`, `src/lib/browser.ts`, or CLI flags. First run needs `pnpm exec playwright install chromium firefox webkit`. CLI help text is snapshotted: update with `pnpm test:integration -u`.
 - **Bump file**: any change to `src/` or `package.json` needs a bump file in `.bumpy/`, or the pre-push hook and the `bump-file` CI job fail. Its message becomes the `CHANGELOG.md` entry, so write it for users. Commands are in `CONTRIBUTING.md`.
+- **Commits**: use conventional commit messages (`feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, `test:`); mark breaking changes with `!`, like `feat!:`.
