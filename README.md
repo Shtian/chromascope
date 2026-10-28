@@ -190,7 +190,15 @@ When a run fails, `--json` prints an error object instead:
 { "schemaVersion": 1, "error": { "code": "INVALID_URL", "message": "…", "hint": "…" } }
 ```
 
-The TypeScript types of these documents, `DiffResult` and `ErrorResult`, live in [`src/lib/result.ts`](src/lib/result.ts).
+The package ships TypeScript types for these documents. Import them as types; the package has no runtime API:
+
+```ts
+import type { CompareResult, DiffResult, ErrorResult } from "chromascope";
+
+const result: DiffResult | ErrorResult = JSON.parse(stdout);
+```
+
+It exports `DiffResult`, `CompareResult`, `SnapshotResult`, `CleanResult` and `ErrorResult`, the per-browser `DiffComparison` and `CompareComparison`, and `SchemaVersion`, `BrowserName`, `ImageOptions`, `Viewport`, `WaitUntil` and `Size`.
 
 #### Exit codes and errors
 
@@ -300,7 +308,7 @@ Things to know:
 - `--baseline-dir <dir>` stores the baselines somewhere else. Pass it to `snapshot`, `compare` and `clean` alike. Any `.chromascope` folder chromascope creates on the way, like for `--baseline-dir .chromascope/other`, gets a `.gitignore` too. Chromascope never edits your project's own `.gitignore`.
 - `clean` only deletes baselines, never run folders.
 
-The `compare` JSON uses the same versioned envelope as `diff`, with `"command": "compare"`. On top of the run ID, URL, capture options and timings, it has the baseline `name` and `baselineDir`, the run folder as `artifactsDir`, `updated` and `cleaned`, and per browser `pixelChange`, `pixelChangePercentage`, `before` and `after` sizes, `sizeChanged`, and absolute `beforePath`, `afterPath` and `diffPath`. Its TypeScript type, `CompareResult`, lives in [`src/lib/result.ts`](src/lib/result.ts) next to `SnapshotResult` and `CleanResult`.
+The `compare` JSON uses the same versioned envelope as `diff`, with `"command": "compare"`. On top of the run ID, URL, capture options and timings, it has the baseline `name` and `baselineDir`, the run folder as `artifactsDir`, `updated` and `cleaned`, and per browser `pixelChange`, `pixelChangePercentage`, `before` and `after` sizes, `sizeChanged`, and absolute `beforePath`, `afterPath` and `diffPath`. Its TypeScript type is `CompareResult`, next to `SnapshotResult` and `CleanResult`: `import type { CompareResult } from "chromascope"`.
 
 ```bash
 $ chromascope snapshot --help

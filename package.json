@@ -23,6 +23,13 @@
     "url": "https://github.com/Shtian/chromascope/issues"
   },
   "bin": "dist/index.js",
+  "types": "./dist/types.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/types.d.ts"
+    },
+    "./package.json": "./package.json"
+  },
   "type": "module",
   "files": [
     "dist"

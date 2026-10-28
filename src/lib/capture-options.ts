@@ -63,7 +63,7 @@ export const parseBrowsers = (value: unknown): BrowserName[] => {
 };
 
 /** Validates the base browser and returns the browsers to capture, base first. The base is always captured. */
-export const parseBase = (value: unknown, browsers: BrowserName[]) => {
+export const parseBase = (value: unknown, browsers: BrowserName[]): { base: BrowserName; browsers: BrowserName[] } => {
   const base = typeof value === "string" ? value.trim().toLowerCase() : "";
   if (!isBrowserName(base)) {
     throw invalidOption(
@@ -99,7 +99,7 @@ export const parseViewport = (value: unknown): Viewport => {
 /** Numbers arrive as numbers or strings, depending on how the CLI parser read them. */
 const toNumber = (value: unknown) => (typeof value === "string" && value.trim() !== "" ? Number(value) : value);
 
-export const parseDeviceScaleFactor = (value: unknown) => {
+export const parseDeviceScaleFactor = (value: unknown): number => {
   const factor = toNumber(value);
   if (typeof factor !== "number" || !(factor > 0)) {
     throw invalidOption(
@@ -110,7 +110,7 @@ export const parseDeviceScaleFactor = (value: unknown) => {
   return factor;
 };
 
-export const parseTimeout = (value: unknown) => {
+export const parseTimeout = (value: unknown): number => {
   const timeout = toNumber(value);
   if (typeof timeout !== "number" || !Number.isInteger(timeout) || timeout < 0) {
     throw invalidOption(
