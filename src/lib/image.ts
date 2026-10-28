@@ -1,5 +1,6 @@
 import pixelmatch from "pixelmatch";
 import { PNG, type PNGWithMetadata } from "pngjs";
+import logger from "./logger";
 
 export type ImageWithMetadata = Pick<PNGWithMetadata, "data" | "width" | "height">;
 type Size = { width: number; height: number };
@@ -41,6 +42,7 @@ export const compareImages = (
 /** Pads the image with transparent pixels to the given size, keeping the original in the top left corner. */
 export const resize = (image: ImageWithMetadata, { width, height }: Size): ImageWithMetadata => {
   if (image.width === width && image.height === height) return image;
+  logger.debug(`Resizing image to ${width}x${height}...`);
   const data = Buffer.alloc(width * height * 4);
   const rowLength = Math.min(image.width, width) * 4;
   for (let y = 0; y < Math.min(image.height, height); y++) {

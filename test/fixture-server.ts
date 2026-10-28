@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { PNG } from "pngjs";
 
-export const FIXTURE_PAGE = fs.readFileSync(path.join(import.meta.dirname, "fixtures/page.html"));
+const FIXTURE_PAGE = fs.readFileSync(path.join(import.meta.dirname, "fixtures/page.html"));
 /** Size of `#box` in the fixture page. */
 export const BOX_SIZE = { width: 200, height: 100 };
 /** Playwright's default viewport. */
