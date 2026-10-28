@@ -38,7 +38,7 @@ Usage:
   $ chromascope <command> [options]
 
 Commands:
-  diff <url>  Diff the URL in chromium, firefox, and webkit. Using chromium as the base.
+  diff <url>  Capture the URL in several browsers and compare each against the base browser
   install     Install the chromium, firefox, and webkit browsers used by chromascope
 
 For more info, run any command with the `--help` flag:
@@ -62,16 +62,35 @@ Usage:
   $ chromascope diff <url>
 
 Options:
-  -e, --element <selector>     Diff only the element with the given selector
+  --browsers <list>            Comma separated browsers to capture (default: chromium,webkit,firefox)
+  -e, --element <selector>     Capture only the element with the given selector
   -f, --full-page              Take a full page screenshot
-  -v, --verbose                Show more output
+  --viewport <size>            Viewport size as <width>x<height> (default: 1280x720)
+  --device-scale-factor <n>    Device scale factor, like 2 for retina screenshots (default: 1)
+  --timeout <ms>               Milliseconds each navigation, wait and capture may take (default: 30000)
+  --wait-for <selector>        Wait for the selector to be visible before capturing
+  --wait-until <event>         Page load event to wait for: load, domcontentloaded or networkidle (default: load)
   -c, --cookie <cookie>        Add one or more cookies to the context. Format: key=value;key2=value2
+  --base <browser>             Browser the others are compared against (default: chromium)
+  -v, --verbose                Show more output
   -s, --save-diff              Save the screenshots and diffs as png in a new run folder inside --folder
   -t, --threshold <threshold>  Set the threshold for the diff (default: 0.2)
   -o, --folder <folder>        Set the base folder for chromascope runs (default: chromascope-runs)
   --out <dir>                  Save the screenshots and diffs as png in exactly this folder, without a run folder
   -h, --help                   Display this message
 ```
+
+#### Capture options
+
+These flags control how the page is captured, so runs are fast and repeatable:
+
+- `--browsers <list>` captures only these browsers, like `--browsers chromium,firefox`. `--base <browser>` picks the browser the others are compared against (default `chromium`). The base browser is always captured.
+- `--viewport <width>x<height>` (default `1280x720`) and `--device-scale-factor <n>` (default `1`) set the page size. A device scale factor of `2` doubles the screenshot's pixel size.
+- `--timeout <ms>` limits every navigation, wait and capture (default `30000`). Use a short timeout to fail fast on a wrong `--element` selector.
+- `--wait-until <load|domcontentloaded|networkidle>` picks the page load event to wait for (default `load`), and `--wait-for <selector>` also waits for an element to be visible.
+- `-e, --element <selector>` captures only the first matching element, and `-f, --full-page` captures the whole page instead of the viewport.
+
+Every capture waits for web fonts, disables CSS animations and transitions, and hides the text caret, so an unchanged page captures the same way every time.
 
 #### Artifacts
 
@@ -82,9 +101,7 @@ By default nothing is written to disk. To keep the screenshots and diffs:
 
 Chromascope prints the absolute path of every file it writes. The file names are stable:
 
-| File                        | Contents                          |
-| --------------------------- | --------------------------------- |
-| `chromium.png`              | Chromium screenshot (the base)    |
-| `webkit.png`, `firefox.png` | WebKit and Firefox screenshots    |
-| `diff-chromium-webkit.png`  | Pixel diff of Chromium vs WebKit  |
-| `diff-chromium-firefox.png` | Pixel diff of Chromium vs Firefox |
+| File                        | Contents                                                                          |
+| --------------------------- | --------------------------------------------------------------------------------- |
+| `<browser>.png`             | Screenshot of each captured browser, like `chromium.png`                          |
+| `diff-<base>-<browser>.png` | Pixel diff of a browser against the base browser, like `diff-chromium-webkit.png` |

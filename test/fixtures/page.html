@@ -21,5 +21,14 @@
   <body>
     <div id="box"></div>
     <div id="tall"></div>
+    <script>
+      // Appears after the load event, for --wait-for.
+      setTimeout(() => {
+        const late = document.createElement("div");
+        late.id = "late";
+        late.style.cssText = "width: 50px; height: 40px; background: #00c";
+        document.body.prepend(late);
+      }, 300);
+    </script>
   </body>
 </html>

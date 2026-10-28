@@ -12,6 +12,10 @@ _Avoid_: browser diff, compatibility check
 The browser a cross-browser diff measures every other browser against.
 _Avoid_: reference browser, main browser
 
+**Capture options**:
+The settings that decide how a page is captured: which browsers, the viewport, the element, what to wait for. Shared by every command that captures a page.
+_Avoid_: screenshot settings, capture config
+
 **Before/after comparison**:
 A comparison of a page captured now against its baseline, in the same browser.
 _Avoid_: regression test, visual test

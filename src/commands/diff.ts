@@ -1,17 +1,23 @@
 import fs from "node:fs";
 import path from "node:path";
-import { type Browser, type BrowserType, chromium, firefox, webkit } from "playwright";
 import { PNG } from "pngjs";
 import type { ChromascopeContext } from "../context";
-import { withBrowser } from "../lib/browser";
+import { capturePage } from "../lib/capture";
+import type { BrowserName } from "../lib/capture-options";
 import { compareImages, formatBaseResult, formatResult } from "../lib/image";
 import logger from "../lib/logger";
 import { createRunFolder } from "../lib/run-folder";
 import { createSpinner } from "../lib/spinner";
-import { parseCookieOptions } from "../lib/utils";
 
-export type VisualDiffResult = ReturnType<typeof diffScreenshots> & {
-  browserName: string;
+export type BrowserComparison = {
+  browser: BrowserName;
+  pixelChange: number;
+  pixelChangePercentage: number;
+  /** Size of the compared canvas: the largest width and height of the two screenshots. */
+  width: number;
+  height: number;
+  /** Absolute paths, or `""` when artifacts aren't saved. */
+  diffPath: string;
   screenshotPath: string;
 };
 
@@ -19,23 +25,20 @@ export const diff = async (link: string, ctx: ChromascopeContext) => {
   logger.setOptions({ verbose: ctx.options.verbose });
   if (ctx.saveArtifacts) createRunFolder(ctx);
 
-  const [chromiumScreenshot, webKitScreenshot, firefoxScreenshot] = await allSettledOrThrow([
-    screenshot(chromium, "Chromium", link, ctx),
-    screenshot(webkit, "WebKit", link, ctx),
-    screenshot(firefox, "Firefox", link, ctx),
-  ]);
+  const { base, browsers } = ctx.options;
+  const [baseScreenshot, ...screenshots] = await allSettledOrThrow(
+    browsers.map((browser) => screenshot(browser, link, ctx)),
+  );
 
-  const chromiumWebKitDiff = diffScreenshots(chromiumScreenshot, webKitScreenshot, "chromium-webkit", ctx);
-  const chromiumFirefoxDiff = diffScreenshots(chromiumScreenshot, firefoxScreenshot, "chromium-firefox", ctx);
+  const comparisons: Array<BrowserComparison> = browsers.slice(1).map((browser, index) => ({
+    browser,
+    ...diffScreenshots(baseScreenshot, screenshots[index], `${base}-${browser}`, ctx),
+    screenshotPath: screenshotPath(browser, ctx),
+  }));
 
   ctx.spinner.text = "";
 
-  const result: Array<VisualDiffResult> = [
-    { ...chromiumWebKitDiff, browserName: "🍎 WebKit", screenshotPath: screenshotPath("webkit", ctx) },
-    { ...chromiumFirefoxDiff, browserName: "🦊 Firefox", screenshotPath: screenshotPath("firefox", ctx) },
-  ];
-
-  return { baseScreenshotPath: screenshotPath("chromium", ctx), result };
+  return { base, baseScreenshotPath: screenshotPath(base, ctx), comparisons };
 };
 
 /** Absolute path of the browser's screenshot, or `""` when artifacts aren't saved. File names are stable. */
@@ -50,41 +53,25 @@ const allSettledOrThrow = async (screenshots: Array<Promise<Buffer>>) => {
   return results.map((result) => (result as PromiseFulfilledResult<Buffer>).value);
 };
 
-export const printResults = ({ baseScreenshotPath, result }: Awaited<ReturnType<typeof diff>>) => {
-  for (const line of formatBaseResult(baseScreenshotPath)) logger.log(line);
-  for (const res of result) {
-    for (const line of formatResult(res)) logger.log(line);
+export const printResults = ({ base, baseScreenshotPath, comparisons }: Awaited<ReturnType<typeof diff>>) => {
+  for (const line of formatBaseResult(base, baseScreenshotPath)) logger.log(line);
+  for (const comparison of comparisons) {
+    for (const line of formatResult(base, comparison)) logger.log(line);
   }
 };
 
-const screenshot = async (browserType: BrowserType, displayName: string, link: string, ctx: ChromascopeContext) => {
-  const browserSpinner = createSpinner().start(`Capturing ${displayName} screenshot 📷`);
+const screenshot = async (browser: BrowserName, link: string, ctx: ChromascopeContext) => {
+  const browserSpinner = createSpinner().start(`Capturing ${browser} screenshot 📷`);
   try {
-    const imageBuffer = await withBrowser(browserType, (browser) => captureBrowserScreenshot(link, browser, ctx));
-    browserSpinner.succeed(`Captured ${displayName} screenshot 📸`);
+    const path = screenshotPath(browser, ctx) || undefined;
+    if (path) logger.debug(`Saving ${browser} screenshot to ${path}`);
+    const imageBuffer = await capturePage(browser, link, ctx.options, path);
+    browserSpinner.succeed(`Captured ${browser} screenshot 📸`);
     return imageBuffer;
   } catch (error) {
-    browserSpinner.fail(`Failed to capture ${displayName} screenshot`);
+    browserSpinner.fail(`Failed to capture ${browser} screenshot`);
     throw error;
   }
-};
-
-const captureBrowserScreenshot = async (link: string, browser: Browser, ctx: ChromascopeContext) => {
-  const context = await browser.newContext();
-  if (ctx.options.cookie) {
-    await context.addCookies(parseCookieOptions(ctx.options.cookie, link));
-  }
-  const type = browser.browserType();
-  const name = type.name();
-  const page = await context.newPage();
-  await page.goto(link);
-  const path = screenshotPath(name, ctx) || undefined;
-  if (path) logger.debug(`Saving ${name} screenshot to ${path}`);
-
-  const imageBuffer = ctx.options.element
-    ? await page.locator(ctx.options.element).screenshot({ path })
-    : await page.screenshot({ path, fullPage: ctx.options.fullPage });
-  return imageBuffer;
 };
 
 const diffScreenshots = (screenshotOne: Buffer, screenshotTwo: Buffer, outputName: string, ctx: ChromascopeContext) => {
@@ -101,5 +88,5 @@ const diffScreenshots = (screenshotOne: Buffer, screenshotTwo: Buffer, outputNam
     fs.writeFileSync(diffPath, PNG.sync.write(diff));
   }
 
-  return { pixelChange, pixelChangePercentage, diffPath };
+  return { pixelChange, pixelChangePercentage, width: diff.width, height: diff.height, diffPath };
 };

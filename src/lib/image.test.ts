@@ -107,33 +107,46 @@ describe("compareImages", () => {
 
 describe("formatBaseResult", () => {
   it("should print nothing when the screenshot wasn't saved", () => {
-    expect(formatBaseResult("")).toEqual([]);
+    expect(formatBaseResult("chromium", "")).toEqual([]);
   });
 
   it("should print the base screenshot path", () => {
-    expect(formatBaseResult("/runs/1/chromium.png")).toEqual([
+    expect(formatBaseResult("chromium", "/runs/1/chromium.png")).toEqual([
       "┌─ 🌐 Chromium (base)",
       "└─ 👉 Screenshot stored at /runs/1/chromium.png",
     ]);
   });
+
+  it("should name the base browser", () => {
+    expect(formatBaseResult("webkit", "/runs/1/webkit.png")[0]).toBe("┌─ 🍎 WebKit (base)");
+  });
 });
 
 describe("formatResult", () => {
-  const result = { browserName: "🦊 Firefox", pixelChange: 42, pixelChangePercentage: 1.23456 };
+  const result = { browser: "firefox", pixelChange: 42, pixelChangePercentage: 1.23456 };
 
   it("should format the pixel change", () => {
-    expect(formatResult({ ...result, diffPath: "", screenshotPath: "" })).toEqual([
+    expect(formatResult("chromium", { ...result, diffPath: "", screenshotPath: "" })).toEqual([
       "┌─ 🦊 Firefox",
       "└─ 👉 1.23% pixel change compared to Chromium (42px)",
     ]);
   });
 
   it("should include the screenshot and diff paths when they were saved", () => {
-    expect(formatResult({ ...result, diffPath: "/runs/1/diff.png", screenshotPath: "/runs/1/firefox.png" })).toEqual([
+    expect(
+      formatResult("chromium", { ...result, diffPath: "/runs/1/diff.png", screenshotPath: "/runs/1/firefox.png" }),
+    ).toEqual([
       "┌─ 🦊 Firefox",
       "├─ 👉 1.23% pixel change compared to Chromium (42px)",
       "├─ 👉 Screenshot stored at /runs/1/firefox.png",
       "└─ 👉 Visual diff stored at /runs/1/diff.png",
+    ]);
+  });
+
+  it("should compare against the base browser", () => {
+    expect(formatResult("webkit", { ...result, browser: "chromium", diffPath: "", screenshotPath: "" })).toEqual([
+      "┌─ 🌐 Chromium",
+      "└─ 👉 1.23% pixel change compared to WebKit (42px)",
     ]);
   });
 });

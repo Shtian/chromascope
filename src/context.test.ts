@@ -2,15 +2,15 @@ import path from "node:path";
 import type { Ora } from "ora";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { type ChromascopeOptions, createChromascopeContext, createRunId } from "./context";
+import { parseCaptureOptions } from "./lib/capture-options";
 
 const options: ChromascopeOptions = {
+  ...parseCaptureOptions({}, { browsers: ["chromium", "webkit"] }),
+  base: "chromium",
   verbose: false,
   threshold: 0.2,
   folder: "chromascope-runs",
   saveDiff: false,
-  element: "",
-  fullPage: false,
-  cookie: "",
 };
 const spinner = {} as Ora;
 

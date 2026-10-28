@@ -4,6 +4,7 @@ import ora from "ora";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { diff } from "../src/commands/diff";
 import { type ChromascopeOptions, createChromascopeContext } from "../src/context";
+import { parseCaptureOptions } from "../src/lib/capture-options";
 import {
   BOX_SIZE,
   createTempDir,
@@ -41,25 +42,24 @@ describe("diff", () => {
   const run = (options: Partial<ChromascopeOptions> = {}) => {
     const ctx = createChromascopeContext(
       {
+        ...parseCaptureOptions({}, { browsers: ["chromium", "webkit", "firefox"] }),
+        base: "chromium",
         verbose: false,
         threshold: 0.2,
         folder: path.join(tempDir, "runs"),
         saveDiff: false,
-        element: "",
-        fullPage: false,
-        cookie: "",
         ...options,
       },
       ora({ isEnabled: false }),
     );
-    return { ctx, result: diff(server.url, ctx).then((run) => run.result) };
+    return { ctx, result: diff(server.url, ctx).then((run) => run.comparisons) };
   };
 
   it("should compare WebKit and Firefox against Chromium and clean up after itself", async () => {
     const { ctx, result: pending } = run();
     const result = await pending;
 
-    expect(result.map((r) => r.browserName)).toEqual(["🍎 WebKit", "🦊 Firefox"]);
+    expect(result.map((r) => r.browser)).toEqual(["webkit", "firefox"]);
     for (const r of result) {
       expect(r.pixelChange).toBeGreaterThanOrEqual(0);
       expect(r.pixelChangePercentage).toBeGreaterThanOrEqual(0);

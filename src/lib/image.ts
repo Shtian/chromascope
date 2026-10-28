@@ -12,12 +12,20 @@ export type ComparisonResult = {
 };
 
 export type FormattableResult = {
-  browserName: string;
+  browser: string;
   pixelChange: number;
   pixelChangePercentage: number;
   diffPath: string;
   screenshotPath: string;
 };
+
+const displayNames: Record<string, string> = {
+  chromium: "🌐 Chromium",
+  webkit: "🍎 WebKit",
+  firefox: "🦊 Firefox",
+};
+const displayName = (browser: string) => displayNames[browser] ?? browser;
+const plainName = (browser: string) => displayName(browser).replace(/^\S+ /, "");
 
 /** Compares two images pixel by pixel. Images of different sizes are compared on the largest canvas. */
 export const compareImages = (
@@ -53,18 +61,18 @@ export const resize = (image: ImageWithMetadata, { width, height }: Size): Image
   return { data, width, height };
 };
 
-/** Lines for the Chromium base screenshot. Empty when the screenshot wasn't saved. */
-export const formatBaseResult = (screenshotPath: string) =>
-  screenshotPath ? ["┌─ 🌐 Chromium (base)", `└─ 👉 Screenshot stored at ${screenshotPath}`] : [];
+/** Lines for the base browser's screenshot. Empty when the screenshot wasn't saved. */
+export const formatBaseResult = (base: string, screenshotPath: string) =>
+  screenshotPath ? [`┌─ ${displayName(base)} (base)`, `└─ 👉 Screenshot stored at ${screenshotPath}`] : [];
 
-export const formatResult = (res: FormattableResult) => {
+export const formatResult = (base: string, res: FormattableResult) => {
   const details = [
-    `👉 ${res.pixelChangePercentage.toFixed(2)}% pixel change compared to Chromium (${res.pixelChange}px)`,
+    `👉 ${res.pixelChangePercentage.toFixed(2)}% pixel change compared to ${plainName(base)} (${res.pixelChange}px)`,
   ];
   if (res.screenshotPath) details.push(`👉 Screenshot stored at ${res.screenshotPath}`);
   if (res.diffPath) details.push(`👉 Visual diff stored at ${res.diffPath}`);
   return [
-    `┌─ ${res.browserName}`,
+    `┌─ ${displayName(res.browser)}`,
     ...details.map((detail, index) => `${index === details.length - 1 ? "└─" : "├─"} ${detail}`),
   ];
 };

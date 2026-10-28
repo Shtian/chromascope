@@ -1,16 +1,16 @@
 import crypto from "node:crypto";
 import path from "node:path";
 import type { Ora } from "ora";
+import type { BrowserName, CaptureOptions } from "./lib/capture-options";
 
-export type ChromascopeOptions = {
+export type ChromascopeOptions = CaptureOptions & {
+  /** The browser every other browser is compared against. Always the first of `browsers`. */
+  base: BrowserName;
   verbose: boolean;
   threshold: number;
   folder: string;
   out?: string;
   saveDiff: boolean;
-  element: string;
-  fullPage: boolean;
-  cookie: string;
 };
 
 export type ChromascopeContext = {
