@@ -2,7 +2,7 @@
 import cac from "cac";
 import { version } from "../package.json";
 import { diff, printResults } from "./commands/diff";
-import { ChromascopeOptions, createChromascopeContext } from "./context";
+import { type ChromascopeOptions, createChromascopeContext } from "./context";
 import logger from "./lib/logger";
 import spinner from "./lib/spinner";
 import { isUrl } from "./lib/utils";

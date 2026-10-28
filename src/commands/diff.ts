@@ -1,8 +1,8 @@
-import fs from "fs";
-import { Browser, chromium, firefox, webkit } from "@playwright/test";
+import fs from "node:fs";
+import { type Browser, chromium, firefox, webkit } from "@playwright/test";
 import pixelmatch from "pixelmatch";
-import { PNG, PNGWithMetadata } from "pngjs";
-import { ChromascopeContext } from "../context";
+import { PNG, type PNGWithMetadata } from "pngjs";
+import type { ChromascopeContext } from "../context";
 import logger from "../lib/logger";
 import { createSpinner } from "../lib/spinner";
 import { parseCookieOptions } from "../lib/utils";
