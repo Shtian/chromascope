@@ -14,3 +14,11 @@ export const parseCookieOptions = (cookies: string, url: string) => {
   });
   return parsedCookies;
 };
+
+export const parseThreshold = (value: unknown) => {
+  const threshold = typeof value === "string" && value.trim() !== "" ? Number(value) : value;
+  if (typeof threshold !== "number" || !(threshold >= 0 && threshold <= 1)) {
+    throw new Error(`--threshold must be a number between 0 and 1, got ${JSON.stringify(value)}`);
+  }
+  return threshold;
+};

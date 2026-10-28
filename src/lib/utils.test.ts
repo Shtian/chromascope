@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isUrl, parseCookieOptions } from "./utils";
+import { isUrl, parseCookieOptions, parseThreshold } from "./utils";
 
 describe("isUrl", () => {
   it("should allow localhost urls", () => {
@@ -71,5 +71,14 @@ describe("parseCookieOptions", () => {
         url,
       },
     ]);
+  });
+});
+
+describe("parseThreshold", () => {
+  it.each([0, 0.2, 1, "0", "0.5", "1"])("should accept %j", (value) => {
+    expect(parseThreshold(value)).toBe(Number(value));
+  });
+  it.each(["abc", "", -0.1, 1.1, "2", Number.NaN, true, undefined])("should reject %j", (value) => {
+    expect(() => parseThreshold(value)).toThrow("--threshold must be a number between 0 and 1");
   });
 });

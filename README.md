@@ -22,6 +22,12 @@ or run it directly with npx:
 npx chromascope <command> [options]
 ```
 
+Chromascope needs the Chromium, Firefox, and WebKit browsers from Playwright. Install them once before your first diff:
+
+```bash
+chromascope install
+```
+
 ### Commands
 
 ```bash
@@ -33,9 +39,11 @@ Usage:
 
 Commands:
   diff <url>  Diff the URL in chromium, firefox, and webkit. Using chromium as the base.
+  install     Install the chromium, firefox, and webkit browsers used by chromascope
 
 For more info, run any command with the `--help` flag:
   $ chromascope diff --help
+  $ chromascope install --help
 
 Options:
   -h, --help     Display this message
@@ -58,6 +66,6 @@ Options:
   -c, --cookie <cookie>        Add one or more cookies to the context. Format: key=value;key2=value2
   -s, --save-diff              Save generated diff as png
   -t, --threshold <threshold>  Set the threshold for the diff (default: 0.2)
-  -f, --folder <folder>        Set the base folder for chromascope runs (default: chromascope-runs)
+  -o, --folder <folder>        Set the base folder for chromascope runs (default: chromascope-runs)
   -h, --help                   Display this message
 ```
