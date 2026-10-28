@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 import cac, { type Command } from "cac";
 import { version } from "../package.json";
-import { diff, printResults } from "./commands/diff";
+import { diff } from "./commands/diff";
 import { createChromascopeContext } from "./context";
 import { type CaptureFlags, parseBase, parseCaptureOptions } from "./lib/capture-options";
+import { formatDiffDecorated, formatDiffPlain } from "./lib/format";
 import { installBrowsers } from "./lib/install";
-import logger from "./lib/logger";
-import spinner from "./lib/spinner";
+import output from "./lib/output";
 import { normalizeUrl, parseThreshold } from "./lib/utils";
 
 const cli = cac("chromascope");
@@ -32,7 +32,8 @@ withCaptureOptions(
   { browsers: "chromium,webkit,firefox" },
 )
   .option("--base <browser>", "Browser the others are compared against", { default: "chromium" })
-  .option("-v, --verbose", "Show more output")
+  .option("-v, --verbose", "Print debug output on stderr")
+  .option("-q, --quiet", "Print no progress on stderr. Errors still print")
   .option("-s, --save-diff", "Save the screenshots and diffs as png in a new run folder inside --folder")
   .option("-t, --threshold <threshold>", "Set the threshold for the diff", {
     default: 0.2,
@@ -42,38 +43,31 @@ withCaptureOptions(
   })
   .option("--out <dir>", "Save the screenshots and diffs as png in exactly this folder, without a run folder")
   .action(async (url: string, options: CaptureFlags & Record<string, unknown>) => {
-    spinner.start("Starting ⚙️");
+    output.configure({ verbose: Boolean(options.verbose), quiet: Boolean(options.quiet) });
     const normalizedUrl = normalizeUrl(url ?? "");
     if (!normalizedUrl) {
-      spinner.fail();
-      console.error("Please provide a valid url");
+      output.error("Please provide a valid url");
       process.exit(1);
     }
     const capture = parseCaptureOptions(options, { browsers: ["chromium", "webkit", "firefox"] });
-    const ctx = createChromascopeContext(
-      {
-        ...capture,
-        ...parseBase(options.base, capture.browsers),
-        verbose: Boolean(options.verbose),
-        threshold: parseThreshold(options.threshold),
-        folder: String(options.folder),
-        out: options.out === undefined ? undefined : String(options.out),
-        saveDiff: Boolean(options.saveDiff),
-      },
-      spinner,
-    );
+    const ctx = createChromascopeContext({
+      ...capture,
+      ...parseBase(options.base, capture.browsers),
+      verbose: Boolean(options.verbose),
+      threshold: parseThreshold(options.threshold),
+      folder: String(options.folder),
+      out: options.out === undefined ? undefined : String(options.out),
+      saveDiff: Boolean(options.saveDiff),
+    });
 
-    logger.setOptions({ verbose: ctx.options.verbose });
-    logger.debug(`Options provided: ${JSON.stringify(options)}`);
-
-    logger.debug(`Diffing URL: ${normalizedUrl}`);
-    logger.debug(`Run ID: ${ctx.runId}`);
-
-    if (ctx.saveArtifacts) logger.debug(`Run folder: ${ctx.runFolder}`);
+    output.debug(`Options provided: ${JSON.stringify(options)}`);
+    output.debug(`Diffing URL: ${normalizedUrl}`);
+    output.debug(`Run ID: ${ctx.runId}`);
+    if (ctx.saveArtifacts) output.debug(`Run folder: ${ctx.runFolder}`);
 
     const result = await diff(normalizedUrl, ctx);
-    spinner.succeed("Diff complete 🎉");
-    printResults(result);
+    output.info("Diff complete", "🎉");
+    output.result(output.plain ? formatDiffPlain(result) : formatDiffDecorated(result));
   });
 
 cli.command("install", "Install the chromium, firefox, and webkit browsers used by chromascope").action(async () => {
@@ -88,9 +82,8 @@ cli.version(version);
     cli.parse(process.argv, { run: false });
     await cli.runMatchedCommand();
   } catch (error) {
-    spinner.fail("Failed");
-    logger.error(error instanceof Error ? error.message : error);
-    logger.debug(error);
+    output.error(error instanceof Error ? error.message : error);
+    output.debug(error);
     process.exit(1);
   }
 })();

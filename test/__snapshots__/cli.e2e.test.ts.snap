@@ -37,7 +37,8 @@ Options:
   --wait-until <event>         Page load event to wait for: load, domcontentloaded or networkidle (default: load) 
   -c, --cookie <cookie>        Add one or more cookies to the context. Format: key=value;key2=value2 
   --base <browser>             Browser the others are compared against (default: chromium)
-  -v, --verbose                Show more output 
+  -v, --verbose                Print debug output on stderr 
+  -q, --quiet                  Print no progress on stderr. Errors still print 
   -s, --save-diff              Save the screenshots and diffs as png in a new run folder inside --folder 
   -t, --threshold <threshold>  Set the threshold for the diff (default: 0.2)
   -o, --folder <folder>        Set the base folder for chromascope runs (default: chromascope-runs)

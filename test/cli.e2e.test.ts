@@ -95,12 +95,41 @@ describe("diff", () => {
     await server.close();
   });
 
-  it("should print the results and leave no files behind", async () => {
+  it("should print plain results on stdout and leave no files behind", async () => {
     const { code, stdout } = await chromascope("diff", server.url);
     expect(code).toBe(0);
-    expect(stdout).toMatch(/┌─ 🍎 WebKit\n└─ 👉 \d+\.\d\d% pixel change compared to Chromium \(\d+px\)/);
-    expect(stdout).toMatch(/┌─ 🦊 Firefox\n└─ 👉 \d+\.\d\d% pixel change compared to Chromium \(\d+px\)/);
+    expect(stdout).toMatch(/^webkit \d+\.\d\d% \d+px\nfirefox \d+\.\d\d% \d+px\n$/);
     expect(listFiles(tempDir)).toEqual([]);
+  });
+
+  it("should print plain progress on stderr", async () => {
+    const { stderr } = await chromascope("diff", server.url);
+    for (const browser of ["chromium", "webkit", "firefox"]) {
+      expect(stderr).toContain(`Capturing ${browser} screenshot\n`);
+      expect(stderr).toContain(`Captured ${browser} screenshot\n`);
+    }
+    expect(stderr).toContain("Diff complete\n");
+    expect(stderr).not.toMatch(/[✔✖📷📸🎉]/u);
+  });
+
+  it("should print debug output on stderr with --verbose", async () => {
+    const { code, stdout, stderr } = await chromascope(
+      "diff",
+      server.url,
+      "--verbose",
+      "--browsers",
+      "chromium,webkit",
+    );
+    expect(code).toBe(0);
+    expect(stdout).toMatch(/^webkit \d+\.\d\d% \d+px\n$/);
+    expect(stderr).toContain("Run ID: ");
+  });
+
+  it("should print no progress with --quiet", async () => {
+    const { code, stdout, stderr } = await chromascope("diff", server.url, "--quiet", "--browsers", "chromium,webkit");
+    expect(code).toBe(0);
+    expect(stdout).toMatch(/^webkit \d+\.\d\d% \d+px\n$/);
+    expect(stderr).toBe("");
   });
 
   it("should save the diffs in --folder with --save-diff", async () => {
@@ -110,10 +139,8 @@ describe("diff", () => {
     const [runId] = fs.readdirSync(path.join(tempDir, "out"));
     expect(runId).toMatch(/^\d{14}-[\da-f]{6}$/);
     const runFolder = path.join(fs.realpathSync(tempDir), "out", runId);
-    expect(stdout).toContain(`Screenshot stored at ${path.join(runFolder, "chromium.png")}`);
-    expect(stdout).toContain(`Screenshot stored at ${path.join(runFolder, "webkit.png")}`);
-    expect(stdout).toContain(`Visual diff stored at ${path.join(runFolder, "diff-chromium-webkit.png")}`);
-    expect(stdout).toContain(`Visual diff stored at ${path.join(runFolder, "diff-chromium-firefox.png")}`);
+    expect(stdout).toContain(` ${path.join(runFolder, "diff-chromium-webkit.png")}\n`);
+    expect(stdout).toContain(` ${path.join(runFolder, "diff-chromium-firefox.png")}\n`);
     expect(listFiles(runFolder)).toEqual([
       "chromium.png",
       "diff-chromium-firefox.png",
@@ -128,10 +155,8 @@ describe("diff", () => {
     expect(code).toBe(0);
 
     const outFolder = path.join(fs.realpathSync(tempDir), "artifacts", "latest");
-    expect(stdout).toContain(`Screenshot stored at ${path.join(outFolder, "chromium.png")}`);
-    expect(stdout).toContain(`Screenshot stored at ${path.join(outFolder, "firefox.png")}`);
-    expect(stdout).toContain(`Visual diff stored at ${path.join(outFolder, "diff-chromium-webkit.png")}`);
-    expect(stdout).toContain(`Visual diff stored at ${path.join(outFolder, "diff-chromium-firefox.png")}`);
+    expect(stdout).toContain(` ${path.join(outFolder, "diff-chromium-webkit.png")}\n`);
+    expect(stdout).toContain(` ${path.join(outFolder, "diff-chromium-firefox.png")}\n`);
     expect(listFiles(outFolder)).toEqual([
       "chromium.png",
       "diff-chromium-firefox.png",
@@ -168,7 +193,7 @@ describe("capture options", () => {
       "out",
     );
     expect(code).toBe(0);
-    expect(stdout).toContain("compared to Firefox");
+    expect(stdout).toMatch(/^webkit \d+\.\d\d% \d+px \S+diff-firefox-webkit\.png\n$/);
     expect(listFiles(out())).toEqual(["diff-firefox-webkit.png", "firefox.png", "webkit.png"]);
   });
 

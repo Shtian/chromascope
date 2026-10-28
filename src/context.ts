@@ -1,6 +1,5 @@
 import crypto from "node:crypto";
 import path from "node:path";
-import type { Ora } from "ora";
 import type { BrowserName, CaptureOptions } from "./lib/capture-options";
 
 export type ChromascopeOptions = CaptureOptions & {
@@ -15,7 +14,6 @@ export type ChromascopeOptions = CaptureOptions & {
 
 export type ChromascopeContext = {
   runId: string;
-  spinner: Ora;
   /** Absolute path of the folder the artifacts are written to. */
   runFolder: string;
   /** Whether screenshots and diffs are written to `runFolder`: with `--save-diff` or `--out`. */
@@ -23,12 +21,11 @@ export type ChromascopeContext = {
   options: ChromascopeOptions;
 };
 
-export function createChromascopeContext(options: ChromascopeOptions, spinner: Ora) {
+export function createChromascopeContext(options: ChromascopeOptions) {
   const runId = createRunId();
   const runFolder = options.out ? path.resolve(options.out) : path.resolve(options.folder, runId);
   const ctx: ChromascopeContext = {
     runId,
-    spinner,
     runFolder,
     saveArtifacts: options.saveDiff || Boolean(options.out),
     options,

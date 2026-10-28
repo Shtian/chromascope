@@ -72,13 +72,27 @@ Options:
   --wait-until <event>         Page load event to wait for: load, domcontentloaded or networkidle (default: load)
   -c, --cookie <cookie>        Add one or more cookies to the context. Format: key=value;key2=value2
   --base <browser>             Browser the others are compared against (default: chromium)
-  -v, --verbose                Show more output
+  -v, --verbose                Print debug output on stderr
+  -q, --quiet                  Print no progress on stderr. Errors still print
   -s, --save-diff              Save the screenshots and diffs as png in a new run folder inside --folder
   -t, --threshold <threshold>  Set the threshold for the diff (default: 0.2)
   -o, --folder <folder>        Set the base folder for chromascope runs (default: chromascope-runs)
   --out <dir>                  Save the screenshots and diffs as png in exactly this folder, without a run folder
   -h, --help                   Display this message
 ```
+
+#### Output
+
+Results go to stdout, and nothing else does. Progress, debug output (`-v, --verbose`) and errors go to stderr, so you can pipe the results into other tools.
+
+In a terminal, chromascope shows spinners and decorated results with emoji. When stdout isn't a terminal, or `CI`, `NO_COLOR` or `--quiet` is set, it prints one plain line per comparison instead: the browser, the pixel change percentage, the changed pixels and, when saved, the absolute path of the diff image.
+
+```
+webkit 0.12% 1104px /home/me/app/chromascope-runs/20261028160312-a1b2c3/diff-chromium-webkit.png
+firefox 0.00% 0px /home/me/app/chromascope-runs/20261028160312-a1b2c3/diff-chromium-firefox.png
+```
+
+Progress on stderr is plain too, one line per step. `-q, --quiet` silences progress completely; errors still print.
 
 #### Capture options
 
@@ -99,7 +113,7 @@ By default nothing is written to disk. To keep the screenshots and diffs:
 - `-s, --save-diff` writes them to a new run folder, `<folder>/<run ID>`. The run ID is the local date and time plus a random suffix, like `20261028160312-a1b2c3`, so concurrent runs never share a folder.
 - `--out <dir>` writes them to exactly `<dir>`, creating it if needed and overwriting earlier files. Use it when you need a predictable path, for example in scripts or coding agents.
 
-Chromascope prints the absolute path of every file it writes. The file names are stable:
+Every printed artifact path is absolute. The file names are stable, so the screenshots sit next to the diff images:
 
 | File                        | Contents                                                                          |
 | --------------------------- | --------------------------------------------------------------------------------- |

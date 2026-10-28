@@ -4,10 +4,9 @@ import { PNG } from "pngjs";
 import type { ChromascopeContext } from "../context";
 import { capturePage } from "../lib/capture";
 import type { BrowserName } from "../lib/capture-options";
-import { compareImages, formatBaseResult, formatResult } from "../lib/image";
-import logger from "../lib/logger";
+import { compareImages } from "../lib/image";
+import output from "../lib/output";
 import { createRunFolder } from "../lib/run-folder";
-import { createSpinner } from "../lib/spinner";
 
 export type BrowserComparison = {
   browser: BrowserName;
@@ -22,7 +21,6 @@ export type BrowserComparison = {
 };
 
 export const diff = async (link: string, ctx: ChromascopeContext) => {
-  logger.setOptions({ verbose: ctx.options.verbose });
   if (ctx.saveArtifacts) createRunFolder(ctx);
 
   const { base, browsers } = ctx.options;
@@ -35,8 +33,6 @@ export const diff = async (link: string, ctx: ChromascopeContext) => {
     ...diffScreenshots(baseScreenshot, screenshots[index], `${base}-${browser}`, ctx),
     screenshotPath: screenshotPath(browser, ctx),
   }));
-
-  ctx.spinner.text = "";
 
   return { base, baseScreenshotPath: screenshotPath(base, ctx), comparisons };
 };
@@ -53,23 +49,16 @@ const allSettledOrThrow = async (screenshots: Array<Promise<Buffer>>) => {
   return results.map((result) => (result as PromiseFulfilledResult<Buffer>).value);
 };
 
-export const printResults = ({ base, baseScreenshotPath, comparisons }: Awaited<ReturnType<typeof diff>>) => {
-  for (const line of formatBaseResult(base, baseScreenshotPath)) logger.log(line);
-  for (const comparison of comparisons) {
-    for (const line of formatResult(base, comparison)) logger.log(line);
-  }
-};
-
 const screenshot = async (browser: BrowserName, link: string, ctx: ChromascopeContext) => {
-  const browserSpinner = createSpinner().start(`Capturing ${browser} screenshot 📷`);
+  const step = output.step(`Capturing ${browser} screenshot`, "📷");
   try {
     const path = screenshotPath(browser, ctx) || undefined;
-    if (path) logger.debug(`Saving ${browser} screenshot to ${path}`);
+    if (path) output.debug(`Saving ${browser} screenshot to ${path}`);
     const imageBuffer = await capturePage(browser, link, ctx.options, path);
-    browserSpinner.succeed(`Captured ${browser} screenshot 📸`);
+    step.succeed(`Captured ${browser} screenshot`, "📸");
     return imageBuffer;
   } catch (error) {
-    browserSpinner.fail(`Failed to capture ${browser} screenshot`);
+    step.fail(`Failed to capture ${browser} screenshot`);
     throw error;
   }
 };
@@ -84,7 +73,7 @@ const diffScreenshots = (screenshotOne: Buffer, screenshotTwo: Buffer, outputNam
   let diffPath = "";
   if (ctx.saveArtifacts) {
     diffPath = path.join(ctx.runFolder, `diff-${outputName}.png`);
-    ctx.spinner.text = `Saving ${outputName} diff 🗄️`;
+    output.debug(`Saving ${outputName} diff to ${diffPath}`);
     fs.writeFileSync(diffPath, PNG.sync.write(diff));
   }
 

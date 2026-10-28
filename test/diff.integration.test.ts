@@ -1,10 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
-import ora from "ora";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { diff } from "../src/commands/diff";
 import { type ChromascopeOptions, createChromascopeContext } from "../src/context";
 import { parseCaptureOptions } from "../src/lib/capture-options";
+import output from "../src/lib/output";
 import {
   BOX_SIZE,
   createTempDir,
@@ -23,6 +23,7 @@ describe("diff", () => {
   let tempDir: string;
 
   beforeAll(async () => {
+    output.configure({ quiet: true });
     server = await startFixtureServer();
   });
 
@@ -40,18 +41,15 @@ describe("diff", () => {
   });
 
   const run = (options: Partial<ChromascopeOptions> = {}) => {
-    const ctx = createChromascopeContext(
-      {
-        ...parseCaptureOptions({}, { browsers: ["chromium", "webkit", "firefox"] }),
-        base: "chromium",
-        verbose: false,
-        threshold: 0.2,
-        folder: path.join(tempDir, "runs"),
-        saveDiff: false,
-        ...options,
-      },
-      ora({ isEnabled: false }),
-    );
+    const ctx = createChromascopeContext({
+      ...parseCaptureOptions({}, { browsers: ["chromium", "webkit", "firefox"] }),
+      base: "chromium",
+      verbose: false,
+      threshold: 0.2,
+      folder: path.join(tempDir, "runs"),
+      saveDiff: false,
+      ...options,
+    });
     return { ctx, result: diff(server.url, ctx).then((run) => run.comparisons) };
   };
 
