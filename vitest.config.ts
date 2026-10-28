@@ -14,7 +14,6 @@ export default defineConfig({
         "src/commands/snapshot.ts",
         "src/lib/capture.ts",
         "src/lib/install.ts",
-        "src/lib/spinner.ts",
       ],
       thresholds: {
         statements: 95,
