@@ -13,8 +13,8 @@ export const diff = async (url: string, ctx: ChromascopeContext): Promise<DiffRe
   const started = performance.now();
   if (ctx.saveArtifacts) createRunFolder(ctx);
 
-  const { base, browsers, element, fullPage, viewport, deviceScaleFactor, waitFor, waitUntil, threshold, timeout } =
-    ctx.options;
+  const { base, browsers, element, fullPage, viewport, deviceScaleFactor, waitFor, waitUntil } = ctx.options;
+  const { threshold, failAbove, timeout } = ctx.options;
   const [baseCapture, ...captures] = await allSettledOrThrow(browsers.map((browser) => capture(browser, url, ctx)));
 
   const comparisons: DiffComparison[] = browsers.slice(1).map((browser, index) => ({
@@ -28,7 +28,18 @@ export const diff = async (url: string, ctx: ChromascopeContext): Promise<DiffRe
     runId: ctx.runId,
     url,
     base,
-    options: { browsers, element, fullPage, viewport, deviceScaleFactor, waitFor, waitUntil, threshold, timeout },
+    options: {
+      browsers,
+      element,
+      fullPage,
+      viewport,
+      deviceScaleFactor,
+      waitFor,
+      waitUntil,
+      threshold,
+      failAbove,
+      timeout,
+    },
     artifactsDir: ctx.saveArtifacts ? ctx.runFolder : null,
     screenshots: Object.fromEntries(browsers.map((browser) => [browser, screenshotPath(browser, ctx)])),
     comparisons,

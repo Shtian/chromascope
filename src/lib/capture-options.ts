@@ -1,3 +1,5 @@
+import { usageError } from "./errors";
+
 export const BROWSERS = ["chromium", "webkit", "firefox"] as const;
 export type BrowserName = (typeof BROWSERS)[number];
 
@@ -40,6 +42,8 @@ export const DEFAULT_IMAGE_OPTIONS: ImageOptions = {
 
 export const DEFAULT_TIMEOUT = 30_000;
 
+const invalidOption = (message: string, hint: string) => usageError("INVALID_OPTION", message, hint);
+
 const isBrowserName = (value: string): value is BrowserName => (BROWSERS as readonly string[]).includes(value);
 
 /** Parses a comma separated list of browsers, like `chromium,firefox`. Repeated flags arrive as an array. */
@@ -47,8 +51,9 @@ export const parseBrowsers = (value: unknown): BrowserName[] => {
   const list = Array.isArray(value) ? value.join(",") : value;
   const names = typeof list === "string" ? list.split(",").map((name) => name.trim().toLowerCase()) : [];
   if (names.length === 0 || !names.every(isBrowserName)) {
-    throw new Error(
+    throw invalidOption(
       `--browsers must be a comma separated list of ${BROWSERS.join(", ")}, got ${JSON.stringify(value)}`,
+      "pass a comma separated list, like --browsers chromium,firefox",
     );
   }
   return [...new Set(names)];
@@ -58,11 +63,17 @@ export const parseBrowsers = (value: unknown): BrowserName[] => {
 export const parseBase = (value: unknown, browsers: BrowserName[]) => {
   const base = typeof value === "string" ? value.trim().toLowerCase() : "";
   if (!isBrowserName(base)) {
-    throw new Error(`--base must be one of ${BROWSERS.join(", ")}, got ${JSON.stringify(value)}`);
+    throw invalidOption(
+      `--base must be one of ${BROWSERS.join(", ")}, got ${JSON.stringify(value)}`,
+      `pass one of ${BROWSERS.join(", ")}`,
+    );
   }
   const others = browsers.filter((browser) => browser !== base);
   if (others.length === 0) {
-    throw new Error(`diff needs at least one browser besides the base, got --browsers ${browsers.join(",")}`);
+    throw invalidOption(
+      `diff needs at least one browser besides the base, got --browsers ${browsers.join(",")}`,
+      "add another browser to --browsers, or pick another --base",
+    );
   }
   return { base, browsers: [base, ...others] };
 };
@@ -74,7 +85,10 @@ export const parseViewport = (value: unknown): Viewport => {
   const width = Number(match?.[1]);
   const height = Number(match?.[2]);
   if (!match || width === 0 || height === 0) {
-    throw new Error(`--viewport must be <width>x<height>, like 1280x720, got ${JSON.stringify(value)}`);
+    throw invalidOption(
+      `--viewport must be <width>x<height>, like 1280x720, got ${JSON.stringify(value)}`,
+      "pass the size as <width>x<height>, like --viewport 1280x720",
+    );
   }
   return { width, height };
 };
@@ -85,7 +99,10 @@ const toNumber = (value: unknown) => (typeof value === "string" && value.trim() 
 export const parseDeviceScaleFactor = (value: unknown) => {
   const factor = toNumber(value);
   if (typeof factor !== "number" || !(factor > 0)) {
-    throw new Error(`--device-scale-factor must be a number above 0, got ${JSON.stringify(value)}`);
+    throw invalidOption(
+      `--device-scale-factor must be a number above 0, got ${JSON.stringify(value)}`,
+      "pass a number above 0, like --device-scale-factor 2",
+    );
   }
   return factor;
 };
@@ -93,21 +110,30 @@ export const parseDeviceScaleFactor = (value: unknown) => {
 export const parseTimeout = (value: unknown) => {
   const timeout = toNumber(value);
   if (typeof timeout !== "number" || !Number.isInteger(timeout) || timeout < 0) {
-    throw new Error(`--timeout must be a whole number of milliseconds, got ${JSON.stringify(value)}`);
+    throw invalidOption(
+      `--timeout must be a whole number of milliseconds, got ${JSON.stringify(value)}`,
+      "pass milliseconds, like --timeout 5000, or 0 for no limit",
+    );
   }
   return timeout;
 };
 
 export const parseWaitUntil = (value: unknown): WaitUntil => {
   if (!(WAIT_UNTIL as readonly unknown[]).includes(value)) {
-    throw new Error(`--wait-until must be one of ${WAIT_UNTIL.join(", ")}, got ${JSON.stringify(value)}`);
+    throw invalidOption(
+      `--wait-until must be one of ${WAIT_UNTIL.join(", ")}, got ${JSON.stringify(value)}`,
+      `pass one of ${WAIT_UNTIL.join(", ")}`,
+    );
   }
   return value as WaitUntil;
 };
 
 const parseSelector = (flag: string, value: unknown) => {
   if (typeof value !== "string" || value.trim() === "") {
-    throw new Error(`${flag} must be a selector, got ${JSON.stringify(value)}`);
+    throw invalidOption(
+      `${flag} must be a selector, got ${JSON.stringify(value)}`,
+      `pass a CSS selector, like ${flag} "#main"`,
+    );
   }
   return value;
 };

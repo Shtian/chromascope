@@ -1,3 +1,5 @@
+import { usageError } from "./errors";
+
 // A scheme followed by a digit is a host and port, like `localhost:3000`.
 const schemeRegex = /^[a-z][a-z\d+.-]*:(?!\d)/i;
 const httpRegex = /^https?:\/\//i;
@@ -47,7 +49,40 @@ export const parseCookieOptions = (cookies: string, url: string) => {
 export const parseThreshold = (value: unknown) => {
   const threshold = typeof value === "string" && value.trim() !== "" ? Number(value) : value;
   if (typeof threshold !== "number" || !(threshold >= 0 && threshold <= 1)) {
-    throw new Error(`--threshold must be a number between 0 and 1, got ${JSON.stringify(value)}`);
+    throw usageError(
+      "INVALID_OPTION",
+      `--threshold must be a number between 0 and 1, got ${JSON.stringify(value)}`,
+      "pass a number between 0 and 1, like --threshold 0.1",
+    );
   }
   return threshold;
+};
+
+export const parseFailAbove = (value: unknown) => {
+  const percent = typeof value === "string" && value.trim() !== "" ? Number(value) : value;
+  if (typeof percent !== "number" || !(percent >= 0 && percent <= 100)) {
+    throw usageError(
+      "INVALID_OPTION",
+      `--fail-above must be a percentage between 0 and 100, got ${JSON.stringify(value)}`,
+      "pass the highest pixel change percentage that still passes, like --fail-above 0.5",
+    );
+  }
+  return percent;
+};
+
+/** Whether any pixel change percentage is above `--fail-above`. Never true without `--fail-above`. */
+export const isAboveFailAbove = (percentages: number[], failAbove: number | null) =>
+  failAbove !== null && percentages.some((percentage) => percentage > failAbove);
+
+/** Parses the URL argument, adding a scheme when it has none. */
+export const parseUrl = (value: unknown) => {
+  const url = typeof value === "string" ? normalizeUrl(value) : undefined;
+  if (!url) {
+    throw usageError(
+      "INVALID_URL",
+      `${JSON.stringify(value)} is not a valid http(s) URL`,
+      "pass an http(s) URL with a host, like http://localhost:3000",
+    );
+  }
+  return url;
 };

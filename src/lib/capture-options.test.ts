@@ -31,6 +31,14 @@ describe("parseBrowsers", () => {
   });
 });
 
+describe("option errors", () => {
+  it("should be usage errors with a hint", () => {
+    expect(() => parseViewport("big")).toThrow(
+      expect.objectContaining({ code: "INVALID_OPTION", category: "usage", hint: expect.stringContaining("1280x720") }),
+    );
+  });
+});
+
 describe("parseBase", () => {
   it("should put the base browser first and add it when it isn't listed", () => {
     expect(parseBase("chromium", ["webkit", "chromium", "firefox"])).toEqual({

@@ -46,6 +46,7 @@ describe("diff", () => {
       base: "chromium",
       verbose: false,
       threshold: 0.2,
+      failAbove: null,
       folder: path.join(tempDir, "runs"),
       saveDiff: false,
       ...options,

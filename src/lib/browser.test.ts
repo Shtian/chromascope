@@ -38,7 +38,12 @@ describe("withBrowser", () => {
       async () => "screenshot",
     );
 
-    await expect(run).rejects.toThrow("chromium is not installed. Run `chromascope install` to install the browsers.");
+    await expect(run).rejects.toMatchObject({
+      code: "BROWSER_NOT_INSTALLED",
+      category: "runtime",
+      message: "chromium is not installed",
+      hint: "run `chromascope install` to install the browsers",
+    });
   });
 
   it("should rethrow other launch errors unchanged", async () => {

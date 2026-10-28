@@ -1,6 +1,7 @@
 import { type BrowserType, chromium, firefox, webkit } from "playwright";
 import { withBrowser } from "./browser";
 import type { BrowserName, CaptureOptions } from "./capture-options";
+import { navigationError, selectorError } from "./errors";
 import { parseCookieOptions } from "./utils";
 
 const browserTypes: Record<BrowserName, BrowserType> = { chromium, webkit, firefox };
@@ -20,12 +21,28 @@ export const capturePage = (browserName: BrowserName, url: string, options: Capt
     if (options.cookie) await context.addCookies(parseCookieOptions(options.cookie, url));
 
     const page = await context.newPage();
-    await page.goto(url, { waitUntil: options.waitUntil });
-    if (options.waitFor) await page.locator(options.waitFor).first().waitFor({ state: "visible" });
+    await page.goto(url, { waitUntil: options.waitUntil }).catch((error) => {
+      throw navigationError(error, url, options.timeout);
+    });
+    const { waitFor, element } = options;
+    if (waitFor) {
+      await page
+        .locator(waitFor)
+        .first()
+        .waitFor({ state: "visible" })
+        .catch((error) => {
+          throw selectorError(error, waitFor, options.timeout);
+        });
+    }
     await page.evaluate(() => document.fonts.ready);
 
     const screenshotOptions = { path, animations: "disabled", caret: "hide" } as const;
-    return options.element
-      ? await page.locator(options.element).first().screenshot(screenshotOptions)
-      : await page.screenshot({ ...screenshotOptions, fullPage: options.fullPage });
+    if (!element) return await page.screenshot({ ...screenshotOptions, fullPage: options.fullPage });
+    return await page
+      .locator(element)
+      .first()
+      .screenshot(screenshotOptions)
+      .catch((error) => {
+        throw selectorError(error, element, options.timeout);
+      });
   });

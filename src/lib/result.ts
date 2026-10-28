@@ -25,7 +25,13 @@ export type DiffResult = {
   runId: string;
   url: string;
   base: BrowserName;
-  options: ImageOptions & { browsers: BrowserName[]; threshold: number; timeout: number };
+  options: ImageOptions & {
+    browsers: BrowserName[];
+    threshold: number;
+    /** The `--fail-above` percentage, or `null` when not given. */
+    failAbove: number | null;
+    timeout: number;
+  };
   /** Absolute path of the folder with the screenshots and diffs, or `null` when artifacts weren't saved. */
   artifactsDir: string | null;
   /** Absolute path of each browser's screenshot, or `null` when artifacts weren't saved. */

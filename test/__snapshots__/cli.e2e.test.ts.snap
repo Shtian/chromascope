@@ -17,6 +17,17 @@ For more info, run any command with the \`--help\` flag:
 Options:
   -h, --help     Display this message 
   -v, --version  Display version number 
+
+Exit codes:
+  0  Success: every comparison is within --fail-above, or no --fail-above was given
+  1  At least one comparison is above --fail-above
+  2  Usage error: unknown command or option, missing or invalid argument
+  3  Runtime error: navigation failed, selector not found, timeout, browser missing
+
+Error codes:
+  Usage (exit 2):   INVALID_URL, INVALID_OPTION, INVALID_ARGUMENT, MISSING_ARGUMENT, UNKNOWN_COMMAND,
+                    INVALID_SELECTOR
+  Runtime (exit 3): BROWSER_NOT_INSTALLED, NAVIGATION_FAILED, SELECTOR_TIMEOUT, UNKNOWN_ERROR
 "
 `;
 
@@ -36,14 +47,26 @@ Options:
   --wait-for <selector>        Wait for the selector to be visible before capturing 
   --wait-until <event>         Page load event to wait for: load, domcontentloaded or networkidle (default: load) 
   -c, --cookie <cookie>        Add one or more cookies to the context. Format: key=value;key2=value2 
-  --base <browser>             Browser the others are compared against (default: chromium)
   -v, --verbose                Print debug output on stderr 
   -q, --quiet                  Print no progress on stderr. Errors still print 
   --json                       Print the result, or the error, as one JSON document on stdout 
-  -s, --save-diff              Save the screenshots and diffs as png in a new run folder inside --folder 
+  --base <browser>             Browser the others are compared against (default: chromium)
   -t, --threshold <threshold>  Set the threshold for the diff (default: 0.2)
+  --fail-above <percent>       Exit with 1 when a browser's pixel change is above this percentage 
+  -s, --save-diff              Save the screenshots and diffs as png in a new run folder inside --folder 
   -o, --folder <folder>        Set the base folder for chromascope runs (default: chromascope-runs)
   --out <dir>                  Save the screenshots and diffs as png in exactly this folder, without a run folder 
   -h, --help                   Display this message 
+
+Exit codes:
+  0  Success: every comparison is within --fail-above, or no --fail-above was given
+  1  At least one comparison is above --fail-above
+  2  Usage error: unknown command or option, missing or invalid argument
+  3  Runtime error: navigation failed, selector not found, timeout, browser missing
+
+Error codes:
+  Usage (exit 2):   INVALID_URL, INVALID_OPTION, INVALID_ARGUMENT, MISSING_ARGUMENT, UNKNOWN_COMMAND,
+                    INVALID_SELECTOR
+  Runtime (exit 3): BROWSER_NOT_INSTALLED, NAVIGATION_FAILED, SELECTOR_TIMEOUT, UNKNOWN_ERROR
 "
 `;

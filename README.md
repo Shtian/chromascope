@@ -48,6 +48,17 @@ For more info, run any command with the `--help` flag:
 Options:
   -h, --help     Display this message
   -v, --version  Display version number
+
+Exit codes:
+  0  Success: every comparison is within --fail-above, or no --fail-above was given
+  1  At least one comparison is above --fail-above
+  2  Usage error: unknown command or option, missing or invalid argument
+  3  Runtime error: navigation failed, selector not found, timeout, browser missing
+
+Error codes:
+  Usage (exit 2):   INVALID_URL, INVALID_OPTION, INVALID_ARGUMENT, MISSING_ARGUMENT, UNKNOWN_COMMAND,
+                    INVALID_SELECTOR
+  Runtime (exit 3): BROWSER_NOT_INSTALLED, NAVIGATION_FAILED, SELECTOR_TIMEOUT, UNKNOWN_ERROR
 ```
 
 #### Diff
@@ -71,15 +82,27 @@ Options:
   --wait-for <selector>        Wait for the selector to be visible before capturing
   --wait-until <event>         Page load event to wait for: load, domcontentloaded or networkidle (default: load)
   -c, --cookie <cookie>        Add one or more cookies to the context. Format: key=value;key2=value2
-  --base <browser>             Browser the others are compared against (default: chromium)
   -v, --verbose                Print debug output on stderr
   -q, --quiet                  Print no progress on stderr. Errors still print
   --json                       Print the result, or the error, as one JSON document on stdout
-  -s, --save-diff              Save the screenshots and diffs as png in a new run folder inside --folder
+  --base <browser>             Browser the others are compared against (default: chromium)
   -t, --threshold <threshold>  Set the threshold for the diff (default: 0.2)
+  --fail-above <percent>       Exit with 1 when a browser's pixel change is above this percentage
+  -s, --save-diff              Save the screenshots and diffs as png in a new run folder inside --folder
   -o, --folder <folder>        Set the base folder for chromascope runs (default: chromascope-runs)
   --out <dir>                  Save the screenshots and diffs as png in exactly this folder, without a run folder
   -h, --help                   Display this message
+
+Exit codes:
+  0  Success: every comparison is within --fail-above, or no --fail-above was given
+  1  At least one comparison is above --fail-above
+  2  Usage error: unknown command or option, missing or invalid argument
+  3  Runtime error: navigation failed, selector not found, timeout, browser missing
+
+Error codes:
+  Usage (exit 2):   INVALID_URL, INVALID_OPTION, INVALID_ARGUMENT, MISSING_ARGUMENT, UNKNOWN_COMMAND,
+                    INVALID_SELECTOR
+  Runtime (exit 3): BROWSER_NOT_INSTALLED, NAVIGATION_FAILED, SELECTOR_TIMEOUT, UNKNOWN_ERROR
 ```
 
 #### Output
@@ -157,6 +180,37 @@ When a run fails, `--json` prints an error object instead:
 ```
 
 The TypeScript types of these documents, `DiffResult` and `ErrorResult`, live in [`src/lib/result.ts`](src/lib/result.ts).
+
+#### Exit codes and errors
+
+| Code | Meaning |
+| --- | --- |
+| `0` | Success: every comparison is within `--fail-above`, or no `--fail-above` was given |
+| `1` | At least one comparison is above `--fail-above` |
+| `2` | Usage error: unknown command or option, missing or invalid argument |
+| `3` | Runtime error: navigation failed, selector not found, timeout, browser missing |
+
+`--fail-above <percent>` makes `diff` exit `1` when any browser's pixel change percentage is above the value, so a CI job or agent can gate on visual drift. `--fail-above 0` fails on any change.
+
+Every error prints a stable code, a message and a hint on stderr. Playwright's call log only prints with `--verbose`.
+
+```
+error[SELECTOR_TIMEOUT]: no element matched "#nope" within 30s
+hint: check the selector, or raise the timeout with --timeout
+```
+
+| Error code | Exit | Meaning |
+| --- | --- | --- |
+| `INVALID_URL` | `2` | The URL isn't an http(s) URL with a host |
+| `INVALID_OPTION` | `2` | An unknown option, or an option with a missing or invalid value |
+| `INVALID_ARGUMENT` | `2` | An argument the command doesn't take |
+| `MISSING_ARGUMENT` | `2` | A required argument, like the URL, is missing |
+| `UNKNOWN_COMMAND` | `2` | No command has this name |
+| `INVALID_SELECTOR` | `2` | `--element` or `--wait-for` isn't a valid selector |
+| `BROWSER_NOT_INSTALLED` | `3` | A browser is missing. Run `chromascope install` |
+| `NAVIGATION_FAILED` | `3` | The page didn't load, or not within `--timeout` |
+| `SELECTOR_TIMEOUT` | `3` | No element matched `--element` or `--wait-for` within `--timeout` |
+| `UNKNOWN_ERROR` | `3` | Anything else. Run again with `--verbose` for details |
 
 #### Capture options
 

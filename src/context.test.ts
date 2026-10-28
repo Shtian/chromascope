@@ -8,6 +8,7 @@ const options: ChromascopeOptions = {
   base: "chromium",
   verbose: false,
   threshold: 0.2,
+  failAbove: null,
   folder: "chromascope-runs",
   saveDiff: false,
 };

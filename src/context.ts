@@ -7,6 +7,8 @@ export type ChromascopeOptions = CaptureOptions & {
   base: BrowserName;
   verbose: boolean;
   threshold: number;
+  /** Exit `1` when a comparison's pixel change percentage is above this. `null` never fails. */
+  failAbove: number | null;
   folder: string;
   out?: string;
   saveDiff: boolean;

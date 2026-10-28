@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { isLoopbackHost, isUrl, normalizeUrl, parseCookieOptions, parseThreshold } from "./utils";
+import {
+  isAboveFailAbove,
+  isLoopbackHost,
+  isUrl,
+  normalizeUrl,
+  parseCookieOptions,
+  parseFailAbove,
+  parseThreshold,
+  parseUrl,
+} from "./utils";
 
 describe("isUrl", () => {
   it("should allow localhost urls", () => {
@@ -150,6 +159,50 @@ describe("parseThreshold", () => {
     expect(parseThreshold(value)).toBe(Number(value));
   });
   it.each(["abc", "", -0.1, 1.1, "2", Number.NaN, true, undefined])("should reject %j", (value) => {
-    expect(() => parseThreshold(value)).toThrow("--threshold must be a number between 0 and 1");
+    expect(() => parseThreshold(value)).toThrow(
+      expect.objectContaining({
+        code: "INVALID_OPTION",
+        category: "usage",
+        message: expect.stringContaining("--threshold must be a number between 0 and 1"),
+      }),
+    );
+  });
+});
+
+describe("parseFailAbove", () => {
+  it.each([0, 0.5, 100, "0", "12.5"])("should accept %j", (value) => {
+    expect(parseFailAbove(value)).toBe(Number(value));
+  });
+  it.each(["abc", "", -1, 101, true, undefined])("should reject %j as an invalid option", (value) => {
+    expect(() => parseFailAbove(value)).toThrow(
+      expect.objectContaining({
+        code: "INVALID_OPTION",
+        category: "usage",
+        message: expect.stringContaining("--fail-above must be a percentage between 0 and 100"),
+      }),
+    );
+  });
+});
+
+describe("isAboveFailAbove", () => {
+  it("should never fail without --fail-above", () => {
+    expect(isAboveFailAbove([100], null)).toBe(false);
+  });
+  it("should fail when any percentage is above --fail-above", () => {
+    expect(isAboveFailAbove([0, 0.6], 0.5)).toBe(true);
+    expect(isAboveFailAbove([0.01], 0)).toBe(true);
+  });
+  it("should pass when every percentage is at or below --fail-above", () => {
+    expect(isAboveFailAbove([0, 0.5], 0.5)).toBe(false);
+    expect(isAboveFailAbove([], 0)).toBe(false);
+  });
+});
+
+describe("parseUrl", () => {
+  it("should normalize a valid url", () => {
+    expect(parseUrl("localhost:3000")).toBe("http://localhost:3000/");
+  });
+  it.each(["not a url", "", undefined])("should reject %j as an invalid url", (value) => {
+    expect(() => parseUrl(value)).toThrow(expect.objectContaining({ code: "INVALID_URL", category: "usage" }));
   });
 });
