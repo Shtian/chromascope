@@ -1,0 +1,143 @@
+import path from "node:path";
+import { PNG } from "pngjs";
+import {
+  type Baseline,
+  type BaselineMetadata,
+  baselineNotFound,
+  type CaptureConflict,
+  captureConflictError,
+  findCaptureConflicts,
+} from "./baselines";
+import type { BrowserName, ImageOptions } from "./capture-options";
+import { compareImages } from "./image";
+import type { CompareComparison } from "./result";
+
+type StoredBaseline = Pick<Baseline, "metadata" | "has">;
+
+export type PlanComparisonInput<B extends StoredBaseline> = {
+  /** The baseline name, given with `--name` or derived from the URL and element. */
+  name: string;
+  /** Absolute path of the folder the baselines are stored in. */
+  root: string;
+  /** The stored baseline, or `undefined` when there is none with this name. */
+  baseline: B | undefined;
+  /** The URL that was given, or `null` to use the baseline's. */
+  url: string | null;
+  /** Whether the name was given with `--name`, rather than derived. */
+  nameGiven: boolean;
+  /** The image options that were given. Each must match the baseline's, unless `update` is set. */
+  given: Partial<ImageOptions>;
+  /** The browsers that were given, or `null` for every browser of the baseline. */
+  browsers: BrowserName[] | null;
+  update: boolean;
+  /** `--baseline-dir` as given, for the hint when the baseline is missing. */
+  baselineDir?: string;
+};
+
+export type ComparisonPlan<B extends StoredBaseline> = {
+  /** The baseline to compare against. */
+  baseline: B;
+  url: string;
+  capture: ImageOptions;
+  browsers: BrowserName[];
+  /** The given capture options that differ from the baseline's. Only non-empty with `--update`. */
+  conflicts: CaptureConflict[];
+};
+
+/**
+ * Decides what a before/after comparison captures: the URL, capture options and browsers, taken from the baseline
+ * unless given. Fails when the baseline or one of its browsers is missing, or a given capture option conflicts.
+ */
+export const planComparison = <B extends StoredBaseline>(input: PlanComparisonInput<B>): ComparisonPlan<B> => {
+  const { name, baseline, given, update } = input;
+  const hint = { name: input.nameGiven ? name : undefined, baselineDir: input.baselineDir };
+
+  if (!baseline) {
+    throw baselineNotFound(`no baseline named ${JSON.stringify(name)} in ${input.root}`, {
+      ...hint,
+      url: input.url,
+      element: given.element ?? null,
+    });
+  }
+  const { metadata } = baseline;
+
+  const conflicts = findCaptureConflicts(metadata.capture, given);
+  if (conflicts.length > 0 && !update) throw captureConflictError(conflicts);
+
+  const browsers = input.browsers ?? metadata.browsers;
+  const absent = browsers.filter((browser) => !baseline.has(browser));
+  if (absent.length > 0) {
+    throw baselineNotFound(`baseline ${JSON.stringify(name)} has no ${absent.join(", ")} capture`, {
+      ...hint,
+      url: input.url ?? metadata.url,
+      element: metadata.capture.element,
+      browsers: [...new Set([...metadata.browsers, ...browsers])],
+    });
+  }
+
+  return { baseline, url: input.url ?? metadata.url, capture: { ...metadata.capture, ...given }, browsers, conflicts };
+};
+
+/**
+ * The baseline that `compare --update` stores: the compared browsers, plus the browsers that weren't compared,
+ * unless the capture options changed under them. `kept` lists the browsers whose stored image stays.
+ */
+export const updatedBaseline = ({
+  stored,
+  compared,
+  conflicted,
+  ...metadata
+}: Omit<BaselineMetadata, "browsers"> & {
+  stored: BaselineMetadata;
+  compared: BrowserName[];
+  /** Whether the capture options differ from the stored ones. */
+  conflicted: boolean;
+}) => {
+  const kept = conflicted ? [] : stored.browsers.filter((browser) => !compared.includes(browser));
+  return { kept, metadata: { ...metadata, browsers: [...kept, ...compared] } satisfies BaselineMetadata };
+};
+
+/** `--clean` deletes the baseline only when the comparison exits 0: within `--fail-above`, or with `--update`. */
+export const shouldClean = ({
+  clean,
+  update,
+  aboveFailAbove,
+}: {
+  clean: boolean;
+  update: boolean;
+  aboveFailAbove: boolean;
+}) => clean && (update || !aboveFailAbove);
+
+/**
+ * Compares a browser's capture against its baseline. Returns the comparison and the before, after and diff images
+ * to write to the run folder.
+ */
+export const compareWithBaseline = (
+  browser: BrowserName,
+  before: Buffer,
+  after: Buffer,
+  runFolder: string,
+  threshold: number,
+) => {
+  const beforeImage = PNG.sync.read(before);
+  const afterImage = PNG.sync.read(after);
+  const { pixelChange, pixelChangePercentage, diff } = compareImages(beforeImage, afterImage, threshold);
+
+  const comparison: CompareComparison = {
+    browser,
+    pixelChange,
+    pixelChangePercentage,
+    before: { width: beforeImage.width, height: beforeImage.height },
+    after: { width: afterImage.width, height: afterImage.height },
+    sizeChanged: beforeImage.width !== afterImage.width || beforeImage.height !== afterImage.height,
+    beforePath: path.join(runFolder, `before-${browser}.png`),
+    afterPath: path.join(runFolder, `after-${browser}.png`),
+    diffPath: path.join(runFolder, `diff-${browser}.png`),
+  };
+  const files: Array<[string, Buffer]> = [
+    [comparison.beforePath, before],
+    [comparison.afterPath, after],
+    [comparison.diffPath, PNG.sync.write(diff)],
+  ];
+  return { comparison, files };
+};
