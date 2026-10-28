@@ -1,4 +1,4 @@
-import type { DiffComparison, DiffResult } from "./result";
+import type { CleanResult, CompareResult, DiffComparison, DiffResult, Size, SnapshotResult } from "./result";
 
 const displayNames: Record<string, string> = {
   chromium: "🌐 Chromium",
@@ -45,6 +45,43 @@ export const formatDiffPlain = ({ comparisons }: DiffResult) =>
       .filter(Boolean)
       .join(" "),
   );
+
+const size = ({ width, height }: Size) => `${width}x${height}`;
+
+/** One line per browser: the browser and the absolute path of its baseline image. */
+export const formatSnapshotPlain = ({ baselines }: SnapshotResult) =>
+  Object.entries(baselines).map(([browser, file]) => `${browser} ${file}`);
+
+export const formatSnapshotDecorated = ({ name, baselines }: SnapshotResult) =>
+  Object.entries(baselines).flatMap(([browser, file]) =>
+    box(displayName(browser), [`Baseline ${JSON.stringify(name)} stored at ${file}`]),
+  );
+
+/** One line per browser: browser, percentage, pixel count, before and after size, and the diff path. */
+export const formatComparePlain = ({ comparisons }: CompareResult) =>
+  comparisons.map((comparison) =>
+    [
+      comparison.browser,
+      `${comparison.pixelChangePercentage.toFixed(2)}%`,
+      `${comparison.pixelChange}px`,
+      `${size(comparison.before)}->${size(comparison.after)}`,
+      comparison.diffPath,
+    ].join(" "),
+  );
+
+export const formatCompareDecorated = ({ comparisons }: CompareResult) =>
+  comparisons.flatMap((comparison) =>
+    box(displayName(comparison.browser), [
+      `${comparison.pixelChangePercentage.toFixed(2)}% pixel change compared to the baseline (${comparison.pixelChange}px)`,
+      ...(comparison.sizeChanged ? [`Size changed from ${size(comparison.before)} to ${size(comparison.after)}`] : []),
+      `Before stored at ${comparison.beforePath}`,
+      `After stored at ${comparison.afterPath}`,
+      `Visual diff stored at ${comparison.diffPath}`,
+    ]),
+  );
+
+/** The deleted folder, if any. */
+export const formatClean = ({ removed }: CleanResult) => (removed ? [removed] : []);
 
 /** The result as one JSON document. */
 export const formatJson = (result: object) => [JSON.stringify(result, null, 2)];

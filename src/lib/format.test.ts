@@ -1,7 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_IMAGE_OPTIONS } from "./capture-options";
-import { formatBaseResult, formatDiffDecorated, formatDiffPlain, formatJson, formatResult } from "./format";
-import type { DiffComparison, DiffResult } from "./result";
+import {
+  formatBaseResult,
+  formatClean,
+  formatCompareDecorated,
+  formatComparePlain,
+  formatDiffDecorated,
+  formatDiffPlain,
+  formatJson,
+  formatResult,
+  formatSnapshotDecorated,
+  formatSnapshotPlain,
+} from "./format";
+import type { CompareComparison, CompareResult, DiffComparison, DiffResult, SnapshotResult } from "./result";
 
 const comparison = (overrides: Partial<DiffComparison> = {}): DiffComparison => ({
   browser: "webkit",
@@ -123,5 +134,112 @@ describe("formatJson", () => {
     const [document, ...rest] = formatJson(result);
     expect(rest).toEqual([]);
     expect(JSON.parse(document)).toEqual(result);
+  });
+});
+
+const snapshotResult: SnapshotResult = {
+  schemaVersion: 1,
+  command: "snapshot",
+  name: "localhost-3000",
+  baselineDir: "/app/.chromascope/baselines/localhost-3000",
+  url: "http://localhost:3000/",
+  options: { ...DEFAULT_IMAGE_OPTIONS, browsers: ["chromium", "firefox"], timeout: 30_000 },
+  baselines: {
+    chromium: "/app/.chromascope/baselines/localhost-3000/chromium.png",
+    firefox: "/app/.chromascope/baselines/localhost-3000/firefox.png",
+  },
+  capturedAt: "2026-10-28T16:03:12.000Z",
+  timings: { totalMs: 2000, captureMs: { chromium: 1500, firefox: 1900 } },
+};
+
+describe("formatSnapshotPlain", () => {
+  it("should print one line per browser with the baseline path", () => {
+    expect(formatSnapshotPlain(snapshotResult)).toEqual([
+      "chromium /app/.chromascope/baselines/localhost-3000/chromium.png",
+      "firefox /app/.chromascope/baselines/localhost-3000/firefox.png",
+    ]);
+  });
+});
+
+describe("formatSnapshotDecorated", () => {
+  it("should print a box per browser with the baseline name and path", () => {
+    expect(formatSnapshotDecorated(snapshotResult)).toEqual([
+      "┌─ 🌐 Chromium",
+      '└─ 👉 Baseline "localhost-3000" stored at /app/.chromascope/baselines/localhost-3000/chromium.png',
+      "┌─ 🦊 Firefox",
+      '└─ 👉 Baseline "localhost-3000" stored at /app/.chromascope/baselines/localhost-3000/firefox.png',
+    ]);
+  });
+});
+
+const compareComparison = (overrides: Partial<CompareComparison> = {}): CompareComparison => ({
+  browser: "chromium",
+  pixelChange: 20_000,
+  pixelChangePercentage: 2.17,
+  before: { width: 1280, height: 720 },
+  after: { width: 1280, height: 720 },
+  sizeChanged: false,
+  beforePath: "/runs/1/before-chromium.png",
+  afterPath: "/runs/1/after-chromium.png",
+  diffPath: "/runs/1/diff-chromium.png",
+  ...overrides,
+});
+
+const compareResult = (comparisons: CompareComparison[]): CompareResult => ({
+  schemaVersion: 1,
+  command: "compare",
+  runId: "20261028160312-a1b2c3",
+  name: "localhost-3000",
+  baselineDir: "/app/.chromascope/baselines/localhost-3000",
+  url: "http://localhost:3000/",
+  options: { ...DEFAULT_IMAGE_OPTIONS, browsers: ["chromium"], threshold: 0.2, failAbove: null, timeout: 30_000 },
+  artifactsDir: "/runs/1",
+  comparisons,
+  updated: false,
+  cleaned: false,
+  timings: { totalMs: 2000, captureMs: { chromium: 1500 } },
+});
+
+describe("formatComparePlain", () => {
+  it("should print one line per browser with the sizes and diff path", () => {
+    expect(
+      formatComparePlain(
+        compareResult([
+          compareComparison(),
+          compareComparison({ browser: "firefox", after: { width: 1280, height: 800 }, sizeChanged: true }),
+        ]),
+      ),
+    ).toEqual([
+      "chromium 2.17% 20000px 1280x720->1280x720 /runs/1/diff-chromium.png",
+      "firefox 2.17% 20000px 1280x720->1280x800 /runs/1/diff-chromium.png",
+    ]);
+  });
+});
+
+describe("formatCompareDecorated", () => {
+  it("should print the change and the before, after and diff images", () => {
+    expect(formatCompareDecorated(compareResult([compareComparison()]))).toEqual([
+      "┌─ 🌐 Chromium",
+      "├─ 👉 2.17% pixel change compared to the baseline (20000px)",
+      "├─ 👉 Before stored at /runs/1/before-chromium.png",
+      "├─ 👉 After stored at /runs/1/after-chromium.png",
+      "└─ 👉 Visual diff stored at /runs/1/diff-chromium.png",
+    ]);
+  });
+
+  it("should point out a size change", () => {
+    const lines = formatCompareDecorated(
+      compareResult([compareComparison({ after: { width: 1280, height: 800 }, sizeChanged: true })]),
+    );
+    expect(lines[2]).toBe("├─ 👉 Size changed from 1280x720 to 1280x800");
+  });
+});
+
+describe("formatClean", () => {
+  it("should print the deleted folder, or nothing", () => {
+    expect(formatClean({ schemaVersion: 1, command: "clean", removed: "/app/.chromascope/baselines" })).toEqual([
+      "/app/.chromascope/baselines",
+    ]);
+    expect(formatClean({ schemaVersion: 1, command: "clean", removed: null })).toEqual([]);
   });
 });

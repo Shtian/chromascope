@@ -1,4 +1,3 @@
-import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -12,8 +11,7 @@ import {
   readPngSize,
   startFixtureServer,
 } from "./fixture-server";
-
-const BIN = path.join(import.meta.dirname, "../dist/index.js");
+import { runCli } from "./run-cli";
 
 let tempDir: string;
 
@@ -25,24 +23,7 @@ afterEach(() => {
   fs.rmSync(tempDir, { recursive: true, force: true });
 });
 
-/** Runs the built CLI from a temp directory, so runs never write to the repo. */
-const chromascope = (...args: string[]) =>
-  new Promise<{ code: number | null; stdout: string; stderr: string }>((resolve, reject) => {
-    const child = spawn(process.execPath, [BIN, ...args], {
-      cwd: tempDir,
-      env: { ...process.env, NO_COLOR: "1", FORCE_COLOR: "0" },
-    });
-    let stdout = "";
-    let stderr = "";
-    child.stdout.on("data", (chunk) => {
-      stdout += chunk;
-    });
-    child.stderr.on("data", (chunk) => {
-      stderr += chunk;
-    });
-    child.on("error", reject);
-    child.on("close", (code) => resolve({ code, stdout, stderr }));
-  });
+const chromascope = (...args: string[]) => runCli(tempDir, ...args);
 
 /** The version is part of the help output; keep snapshots stable across releases. */
 const withoutVersion = (output: string) => output.replaceAll(version, "<version>");
@@ -56,6 +37,12 @@ describe("help and version", () => {
 
   it("should print the help for diff", async () => {
     const { code, stdout } = await chromascope("diff", "--help");
+    expect(code).toBe(0);
+    expect(withoutVersion(stdout)).toMatchSnapshot();
+  });
+
+  it.each(["snapshot", "compare", "clean"])("should print the help for %s", async (command) => {
+    const { code, stdout } = await chromascope(command, "--help");
     expect(code).toBe(0);
     expect(withoutVersion(stdout)).toMatchSnapshot();
   });
@@ -314,7 +301,7 @@ describe("capture options", () => {
   it("should wait for --wait-for before capturing", async () => {
     const { code } = await chromascope(
       "diff",
-      server.url,
+      `${server.url}#late`,
       "--browsers",
       "chromium,webkit",
       "--wait-for",
@@ -378,6 +365,7 @@ const expectDiffResultSchema = (result: Record<string, unknown>) => {
       timeout: expect.any(Number),
       waitFor: expect.toBeOneOf([null, expect.any(String)]),
       waitUntil: expect.any(String),
+      mask: expect.any(Array),
     },
     artifactsDir: expect.toBeOneOf([null, expect.any(String)]),
     screenshots: expect.any(Object),

@@ -2,6 +2,7 @@ import { type BrowserType, chromium, firefox, webkit } from "playwright";
 import { withBrowser } from "./browser";
 import type { BrowserName, CaptureOptions } from "./capture-options";
 import { navigationError, selectorError } from "./errors";
+import output from "./output";
 import { parseCookieOptions } from "./utils";
 
 const browserTypes: Record<BrowserName, BrowserType> = { chromium, webkit, firefox };
@@ -36,7 +37,8 @@ export const capturePage = (browserName: BrowserName, url: string, options: Capt
     }
     await page.evaluate(() => document.fonts.ready);
 
-    const screenshotOptions = { path, animations: "disabled", caret: "hide" } as const;
+    const mask = options.mask.map((selector) => page.locator(selector));
+    const screenshotOptions = { path, animations: "disabled", caret: "hide", mask } as const;
     if (!element) return await page.screenshot({ ...screenshotOptions, fullPage: options.fullPage });
     return await page
       .locator(element)
@@ -46,3 +48,35 @@ export const capturePage = (browserName: BrowserName, url: string, options: Capt
         throw selectorError(error, element, options.timeout);
       });
   });
+
+export type Capture = { browser: BrowserName; image: Buffer; ms: number };
+
+/**
+ * Captures the page in every browser at once, showing progress. Writes each image to `pathFor(browser)` when given.
+ * Waits for every capture to settle, so no browser is left running, then throws the first failure.
+ */
+export const captureAll = async (
+  browsers: BrowserName[],
+  url: string,
+  options: CaptureOptions,
+  pathFor: (browser: BrowserName) => string | undefined = () => undefined,
+): Promise<Capture[]> => {
+  const results = await Promise.allSettled(browsers.map((browser) => capture(browser, url, options, pathFor(browser))));
+  const failed = results.find((result) => result.status === "rejected");
+  if (failed) throw failed.reason;
+  return results.map((result) => (result as PromiseFulfilledResult<Capture>).value);
+};
+
+const capture = async (browser: BrowserName, url: string, options: CaptureOptions, path?: string) => {
+  const step = output.step(`Capturing ${browser} screenshot`, "📷");
+  const started = performance.now();
+  try {
+    if (path) output.debug(`Saving ${browser} screenshot to ${path}`);
+    const image = await capturePage(browser, url, options, path);
+    step.succeed(`Captured ${browser} screenshot`, "📸");
+    return { browser, image, ms: Math.round(performance.now() - started) };
+  } catch (error) {
+    step.fail(`Failed to capture ${browser} screenshot`);
+    throw error;
+  }
+};

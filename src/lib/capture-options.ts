@@ -18,6 +18,8 @@ export type ImageOptions = {
   /** Wait for an element matching this selector to be visible before capturing. */
   waitFor: string | null;
   waitUntil: WaitUntil;
+  /** Hide the elements matching these selectors behind a solid box. */
+  mask: string[];
 };
 
 /** How a page is captured. Shared by every command that captures a page. */
@@ -38,6 +40,7 @@ export const DEFAULT_IMAGE_OPTIONS: ImageOptions = {
   fullPage: false,
   waitFor: null,
   waitUntil: "load",
+  mask: [],
 };
 
 export const DEFAULT_TIMEOUT = 30_000;
@@ -149,6 +152,10 @@ export const parseImageOptions = (flags: CaptureFlags): Partial<ImageOptions> =>
   if (flags.fullPage !== undefined) options.fullPage = Boolean(flags.fullPage);
   if (flags.waitFor !== undefined) options.waitFor = parseSelector("--wait-for", flags.waitFor);
   if (flags.waitUntil !== undefined) options.waitUntil = parseWaitUntil(flags.waitUntil);
+  if (flags.mask !== undefined) {
+    // A repeated flag arrives as an array.
+    options.mask = (Array.isArray(flags.mask) ? flags.mask : [flags.mask]).map((mask) => parseSelector("--mask", mask));
+  }
   return options;
 };
 
@@ -160,3 +167,14 @@ export const parseCaptureOptions = (flags: CaptureFlags, defaults: { browsers: B
   timeout: flags.timeout === undefined ? DEFAULT_TIMEOUT : parseTimeout(flags.timeout),
   cookie: typeof flags.cookie === "string" ? flags.cookie : "",
 });
+
+/** The image options out of all capture options. */
+export const pickImageOptions = ({
+  viewport,
+  deviceScaleFactor,
+  element,
+  fullPage,
+  waitFor,
+  waitUntil,
+  mask,
+}: ImageOptions): ImageOptions => ({ viewport, deviceScaleFactor, element, fullPage, waitFor, waitUntil, mask });

@@ -22,8 +22,8 @@
     <div id="box"></div>
     <div id="tall"></div>
     <script>
-      // Appears after the load event, for --wait-for.
-      setTimeout(() => {
+      // With #late, an element appears after the load event, for --wait-for.
+      if (location.hash === "#late") setTimeout(() => {
         const late = document.createElement("div");
         late.id = "late";
         late.style.cssText = "width: 50px; height: 40px; background: #00c";

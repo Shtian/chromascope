@@ -8,6 +8,7 @@ import {
   parseTimeout,
   parseViewport,
   parseWaitUntil,
+  pickImageOptions,
 } from "./capture-options";
 
 describe("parseBrowsers", () => {
@@ -128,7 +129,17 @@ describe("parseImageOptions", () => {
     });
   });
 
-  it.each(["element", "waitFor"])("should reject an empty %s selector", (name) => {
+  it.each([
+    ["#clock", ["#clock"]],
+    [
+      ["#clock", ".ad"],
+      ["#clock", ".ad"],
+    ],
+  ])("should parse --mask %j into a list", (mask, expected) => {
+    expect(parseImageOptions({ mask })).toEqual({ mask: expected });
+  });
+
+  it.each(["element", "waitFor", "mask"])("should reject an empty %s selector", (name) => {
     expect(() => parseImageOptions({ [name]: "" })).toThrow("must be a selector");
   });
 });
@@ -143,6 +154,7 @@ describe("parseCaptureOptions", () => {
       fullPage: false,
       waitFor: null,
       waitUntil: "load",
+      mask: [],
       timeout: 30_000,
       cookie: "",
     });
@@ -160,6 +172,21 @@ describe("parseCaptureOptions", () => {
       timeout: 500,
       cookie: "a=b",
       element: "#box",
+    });
+  });
+});
+
+describe("pickImageOptions", () => {
+  it("should keep only the options that change the image", () => {
+    const options = parseCaptureOptions({ cookie: "a=b", mask: "#clock" }, { browsers: ["chromium"] });
+    expect(pickImageOptions(options)).toEqual({
+      viewport: { width: 1280, height: 720 },
+      deviceScaleFactor: 1,
+      element: null,
+      fullPage: false,
+      waitFor: null,
+      waitUntil: "load",
+      mask: ["#clock"],
     });
   });
 });

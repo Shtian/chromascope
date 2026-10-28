@@ -1,34 +1,56 @@
 #!/usr/bin/env node
 import cac, { type Command } from "cac";
 import { version } from "../package.json";
+import { compare } from "./commands/compare";
 import { diff } from "./commands/diff";
+import { snapshot } from "./commands/snapshot";
 import { createChromascopeContext } from "./context";
-import { type CaptureFlags, parseBase, parseCaptureOptions } from "./lib/capture-options";
+import { createBaselineStore, DEFAULT_BASELINE_DIR, deriveBaselineName, parseBaselineName } from "./lib/baselines";
+import { type CaptureFlags, parseBase, parseCaptureOptions, parseImageOptions } from "./lib/capture-options";
 import { EXIT_CODES, exitCodeFor, formatError, toChromascopeError, toErrorResult, usageError } from "./lib/errors";
-import { formatDiffDecorated, formatDiffPlain, formatJson } from "./lib/format";
+import {
+  formatClean,
+  formatCompareDecorated,
+  formatComparePlain,
+  formatDiffDecorated,
+  formatDiffPlain,
+  formatJson,
+  formatSnapshotDecorated,
+  formatSnapshotPlain,
+} from "./lib/format";
 import { installBrowsers } from "./lib/install";
 import output from "./lib/output";
+import { type CleanResult, SCHEMA_VERSION } from "./lib/result";
 import { isAboveFailAbove, parseFailAbove, parseThreshold, parseUrl } from "./lib/utils";
 
 type Flags = CaptureFlags & Record<string, unknown>;
 
 const cli = cac("chromascope");
 
-/** Adds the capture option flags shared by every command that captures a page. */
-const withCaptureOptions = (command: Command, { browsers }: { browsers: string }) =>
-  command
+/**
+ * Adds the capture option flags shared by every command that captures a page.
+ * `compare` takes the image options from the baseline, so they have no defaults of their own there.
+ */
+const withCaptureOptions = (command: Command, { browsers, fromBaseline = false }: CaptureDefaults) => {
+  const byDefault = (value?: string) =>
+    fromBaseline ? " (default: the baseline's)" : value ? ` (default: ${value})` : "";
+  return command
     .option("--browsers <list>", `Comma separated browsers to capture (default: ${browsers})`)
-    .option("-e, --element <selector>", "Capture only the element with the given selector")
-    .option("-f, --full-page", "Take a full page screenshot")
-    .option("--viewport <size>", "Viewport size as <width>x<height> (default: 1280x720)")
-    .option("--device-scale-factor <n>", "Device scale factor, like 2 for retina screenshots (default: 1)")
+    .option("-e, --element <selector>", `Capture only the element with the given selector${byDefault()}`)
+    .option("-f, --full-page", `Take a full page screenshot${byDefault()}`)
+    .option("--viewport <size>", `Viewport size as <width>x<height>${byDefault("1280x720")}`)
+    .option("--device-scale-factor <n>", `Device scale factor, like 2 for retina screenshots${byDefault("1")}`)
     .option("--timeout <ms>", "Milliseconds each navigation, wait and capture may take (default: 30000)")
-    .option("--wait-for <selector>", "Wait for the selector to be visible before capturing")
+    .option("--wait-for <selector>", `Wait for the selector to be visible before capturing${byDefault()}`)
     .option(
       "--wait-until <event>",
-      "Page load event to wait for: load, domcontentloaded or networkidle (default: load)",
+      `Page load event to wait for: load, domcontentloaded or networkidle${byDefault("load")}`,
     )
+    .option("--mask <selector>", `Hide the elements matching the selector. Repeat it to mask more${byDefault()}`)
     .option("-c, --cookie <cookie>", "Add one or more cookies to the context. Format: key=value;key2=value2");
+};
+
+type CaptureDefaults = { browsers: string; fromBaseline?: boolean };
 
 /** Adds the flags that control output, shared by every command that prints a result. */
 const withOutputOptions = (command: Command) =>
@@ -37,20 +59,35 @@ const withOutputOptions = (command: Command) =>
     .option("-q, --quiet", "Print no progress on stderr. Errors still print")
     .option("--json", "Print the result, or the error, as one JSON document on stdout");
 
+/** Adds the flags that decide how pixels are compared, shared by `diff` and `compare`. */
+const withComparisonOptions = (command: Command) =>
+  command
+    .option("-t, --threshold <threshold>", "Set the threshold for the diff", {
+      default: 0.2,
+    })
+    .option("--fail-above <percent>", "Exit with 1 when a browser's pixel change is above this percentage");
+
+const withBaselineDir = (command: Command) =>
+  command.option("--baseline-dir <dir>", `Folder the baselines are stored in (default: ${DEFAULT_BASELINE_DIR})`);
+
 const configureOutput = (options: Flags) =>
   output.configure({ verbose: Boolean(options.verbose), quiet: Boolean(options.quiet), json: Boolean(options.json) });
 
-withOutputOptions(
-  withCaptureOptions(
-    cli.command("diff <url>", "Capture the URL in several browsers and compare each against the base browser"),
-    { browsers: "chromium,webkit,firefox" },
+/** Prints the result as JSON, plain text or decorated text, depending on the flags and the terminal. */
+const printResult = <T extends object>(result: T, plain: (result: T) => string[], decorated: (result: T) => string[]) =>
+  output.result(output.json ? formatJson(result) : output.plain ? plain(result) : decorated(result));
+
+const optionalString = (value: unknown) => (value === undefined ? undefined : String(value));
+
+withComparisonOptions(
+  withOutputOptions(
+    withCaptureOptions(
+      cli.command("diff <url>", "Capture the URL in several browsers and compare each against the base browser"),
+      { browsers: "chromium,webkit,firefox" },
+    ),
   ),
 )
   .option("--base <browser>", "Browser the others are compared against", { default: "chromium" })
-  .option("-t, --threshold <threshold>", "Set the threshold for the diff", {
-    default: 0.2,
-  })
-  .option("--fail-above <percent>", "Exit with 1 when a browser's pixel change is above this percentage")
   .option("-s, --save-diff", "Save the screenshots and diffs as png in a new run folder inside --folder")
   .option("-o, --folder <folder>", "Set the base folder for chromascope runs", {
     default: "chromascope-runs",
@@ -67,7 +104,7 @@ withOutputOptions(
       threshold: parseThreshold(options.threshold),
       failAbove: options.failAbove === undefined ? null : parseFailAbove(options.failAbove),
       folder: String(options.folder),
-      out: options.out === undefined ? undefined : String(options.out),
+      out: optionalString(options.out),
       saveDiff: Boolean(options.saveDiff),
     });
 
@@ -78,15 +115,109 @@ withOutputOptions(
 
     const result = await diff(normalizedUrl, ctx);
     output.info("Diff complete", "🎉");
-    output.result(
-      output.json ? formatJson(result) : output.plain ? formatDiffPlain(result) : formatDiffDecorated(result),
-    );
+    printResult(result, formatDiffPlain, formatDiffDecorated);
 
     const percentages = result.comparisons.map((comparison) => comparison.pixelChangePercentage);
     if (!isAboveFailAbove(percentages, ctx.options.failAbove)) return EXIT_CODES.ok;
     output.info(`Pixel change above --fail-above ${ctx.options.failAbove}%`);
     return EXIT_CODES.aboveFailAbove;
   });
+
+withBaselineDir(
+  withOutputOptions(
+    withCaptureOptions(cli.command("snapshot <url>", "Capture a baseline of the URL for a later compare"), {
+      browsers: "chromium",
+    }),
+  ),
+)
+  .option("--name <name>", "Baseline name (default: derived from the URL and --element)")
+  .action(async (url: string, options: Flags) => {
+    configureOutput(options);
+    const normalizedUrl = parseUrl(url);
+    const capture = parseCaptureOptions(options, { browsers: ["chromium"] });
+    const name =
+      options.name === undefined ? deriveBaselineName(normalizedUrl, capture.element) : parseBaselineName(options.name);
+    const store = createBaselineStore(optionalString(options.baselineDir));
+    output.debug(`Options provided: ${JSON.stringify(options)}`);
+
+    const result = await snapshot(normalizedUrl, name, capture, store);
+    output.info(`Saved baseline ${JSON.stringify(name)}`, "🎉");
+    printResult(result, formatSnapshotPlain, formatSnapshotDecorated);
+    return EXIT_CODES.ok;
+  });
+
+withBaselineDir(
+  withComparisonOptions(
+    withOutputOptions(
+      withCaptureOptions(
+        cli.command("compare [url]", "Capture the URL again and compare each browser against its baseline"),
+        { browsers: "every browser of the baseline", fromBaseline: true },
+      ),
+    ),
+  ),
+)
+  .option(
+    "--name <name>",
+    "Baseline name. Without a URL, the baseline's URL is captured (default: derived from the URL and --element)",
+  )
+  .option("--update", "Save the new capture as the baseline after comparing. Always exits with 0")
+  .option("--clean", "Delete the baseline when the comparison exits with 0")
+  .option("-o, --folder <folder>", "Set the base folder for chromascope runs", {
+    default: "chromascope-runs",
+  })
+  .option("--out <dir>", "Save the before, after and diff images in exactly this folder, without a run folder")
+  .action(async (url: string | undefined, options: Flags) => {
+    configureOutput(options);
+    if (url === undefined && options.name === undefined) {
+      throw usageError(
+        "MISSING_ARGUMENT",
+        "compare needs a URL or --name",
+        "pass the URL you took the snapshot of, or the baseline name with --name",
+      );
+    }
+    if (options.update && options.clean) {
+      throw usageError("INVALID_OPTION", "--update and --clean can't be used together", "pick one of them");
+    }
+    const capture = parseCaptureOptions(options, { browsers: ["chromium"] });
+    const { result, aboveFailAbove } = await compare(
+      {
+        url: url === undefined ? null : parseUrl(url),
+        name: options.name === undefined ? null : parseBaselineName(options.name),
+        given: parseImageOptions(options),
+        browsers: options.browsers === undefined ? null : capture.browsers,
+        timeout: capture.timeout,
+        cookie: capture.cookie,
+        threshold: parseThreshold(options.threshold),
+        failAbove: options.failAbove === undefined ? null : parseFailAbove(options.failAbove),
+        update: Boolean(options.update),
+        clean: Boolean(options.clean),
+        folder: String(options.folder),
+        out: optionalString(options.out),
+        baselineDir: optionalString(options.baselineDir),
+      },
+      createBaselineStore(optionalString(options.baselineDir)),
+    );
+
+    output.info("Compare complete", "🎉");
+    if (result.updated) output.info(`Updated baseline ${JSON.stringify(result.name)}`);
+    if (result.cleaned) output.info(`Deleted baseline ${JSON.stringify(result.name)}`);
+    printResult(result, formatComparePlain, formatCompareDecorated);
+
+    if (!aboveFailAbove) return EXIT_CODES.ok;
+    output.info(`Pixel change above --fail-above ${result.options.failAbove}%`);
+    return result.updated ? EXIT_CODES.ok : EXIT_CODES.aboveFailAbove;
+  });
+
+withBaselineDir(
+  withOutputOptions(cli.command("clean [name]", "Delete the baseline with this name, or every baseline")),
+).action((name: string | undefined, options: Flags) => {
+  configureOutput(options);
+  const store = createBaselineStore(optionalString(options.baselineDir));
+  const removed = name === undefined ? store.removeAll() : store.remove(parseBaselineName(name));
+  output.info(removed ? `Deleted ${removed}` : "No baselines to delete");
+  printResult<CleanResult>({ schemaVersion: SCHEMA_VERSION, command: "clean", removed }, formatClean, formatClean);
+  return EXIT_CODES.ok;
+});
 
 cli
   .command("install", "Install the chromium, firefox, and webkit browsers used by chromascope")
@@ -97,18 +228,19 @@ cli.help((sections) => [
   {
     title: "Exit codes",
     body: [
-      "  0  Success: every comparison is within --fail-above, or no --fail-above was given",
+      "  0  Success: every comparison is within --fail-above, or no --fail-above was given, or compare --update",
       "  1  At least one comparison is above --fail-above",
       "  2  Usage error: unknown command or option, missing or invalid argument",
-      "  3  Runtime error: navigation failed, selector not found, timeout, browser missing",
+      "  3  Runtime error: navigation failed, selector not found, timeout, browser or baseline missing",
     ].join("\n"),
   },
   {
     title: "Error codes",
     body: [
       "  Usage (exit 2):   INVALID_URL, INVALID_OPTION, INVALID_ARGUMENT, MISSING_ARGUMENT, UNKNOWN_COMMAND,",
-      "                    INVALID_SELECTOR",
-      "  Runtime (exit 3): BROWSER_NOT_INSTALLED, NAVIGATION_FAILED, SELECTOR_TIMEOUT, UNKNOWN_ERROR",
+      "                    INVALID_SELECTOR, CAPTURE_OPTION_CONFLICT",
+      "  Runtime (exit 3): BROWSER_NOT_INSTALLED, NAVIGATION_FAILED, SELECTOR_TIMEOUT, BASELINE_NOT_FOUND,",
+      "                    BASELINE_INVALID, UNKNOWN_ERROR",
     ].join("\n"),
   },
 ]);

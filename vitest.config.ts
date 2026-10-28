@@ -9,7 +9,9 @@ export default defineConfig({
         "src/**/*.test.ts",
         // Glue around the CLI, Playwright and the terminal. Covered by the integration and e2e tests instead.
         "src/index.ts",
+        "src/commands/compare.ts",
         "src/commands/diff.ts",
+        "src/commands/snapshot.ts",
         "src/lib/capture.ts",
         "src/lib/install.ts",
         "src/lib/spinner.ts",
