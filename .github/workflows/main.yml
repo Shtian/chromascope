@@ -19,3 +19,23 @@ jobs:
           require-lockfile: true
 
       - run: pnpm run ci
+
+  # Separate job so a missing bump file doesn't hide test results, and so it
+  # finishes in seconds without installing dependencies.
+  bump-file:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/setup@v3
+        with:
+          install: false
+      - name: Check for bump file
+        run: |
+          VERSION=$(jq -r '.devDependencies["@varlock/bumpy"]' package.json | sed 's/[\^~]//')
+          pnpm dlx "@varlock/bumpy@$VERSION" ci check
+        env:
+          GH_TOKEN: ${{ github.token }}
