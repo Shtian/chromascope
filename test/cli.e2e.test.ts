@@ -41,7 +41,13 @@ describe("help and version", () => {
     expect(withoutVersion(stdout)).toMatchSnapshot();
   });
 
-  it.each(["snapshot", "compare", "clean"])("should print the help for %s", async (command) => {
+  it("should print the help without a command", async () => {
+    const [bare, help] = await Promise.all([chromascope(), chromascope("--help")]);
+    expect(bare.code).toBe(0);
+    expect(bare.stdout).toBe(help.stdout);
+  });
+
+  it.each(["snapshot", "compare", "clean", "doctor"])("should print the help for %s", async (command) => {
     const { code, stdout } = await chromascope(command, "--help");
     expect(code).toBe(0);
     expect(withoutVersion(stdout)).toMatchSnapshot();
@@ -51,6 +57,45 @@ describe("help and version", () => {
     const { code, stdout } = await chromascope("--version");
     expect(code).toBe(0);
     expect(stdout).toMatch(new RegExp(`^chromascope/${version.replaceAll(".", "\\.")} `));
+  });
+});
+
+describe("doctor", () => {
+  it("should pass every check and print one line per check", async () => {
+    const { code, stdout } = await chromascope("doctor");
+    expect(code).toBe(0);
+    expect(stdout.split("\n").filter(Boolean)).toEqual([
+      expect.stringMatching(/^ok node: node \S+, needs >=/),
+      "ok chromium: chromium launches",
+      "ok webkit: webkit launches",
+      "ok firefox: firefox launches",
+      `ok folder: ${path.join(fs.realpathSync(tempDir), "chromascope-runs")} is writable`,
+    ]);
+    expect(listFiles(tempDir)).toEqual([]);
+  });
+
+  it("should print the checks as JSON with --json", async () => {
+    const { code, stdout, stderr } = await chromascope("doctor", "--json", "--browsers", "chromium");
+    expect(code).toBe(0);
+    expect(stderr).toBe("");
+    expect(JSON.parse(stdout)).toEqual({
+      schemaVersion: 1,
+      command: "doctor",
+      ok: true,
+      checks: [
+        { name: "node", ok: true, message: expect.any(String), fix: null },
+        { name: "chromium", ok: true, message: "chromium launches", fix: null },
+        { name: "folder", ok: true, message: expect.stringContaining("is writable"), fix: null },
+      ],
+    });
+  });
+
+  it("should exit 3 with a fix when a check fails", async () => {
+    fs.writeFileSync(path.join(tempDir, "file"), "");
+    const { code, stdout } = await chromascope("doctor", "--browsers", "chromium", "--folder", "file/runs");
+    expect(code).toBe(3);
+    expect(stdout).toContain("fail folder: ");
+    expect(stdout).toContain("(fix: pass a writable folder with --folder, or fix the folder's permissions)\n");
   });
 });
 

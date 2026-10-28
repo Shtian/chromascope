@@ -11,6 +11,7 @@ Commands:
   snapshot <url>  Capture a baseline of the URL for a later compare
   compare [url]   Capture the URL again and compare each browser against its baseline
   clean [name]    Delete the baseline with this name, or every baseline
+  doctor          Check that Node, the browsers and the output folder are ready for chromascope
   install         Install the chromium, firefox, and webkit browsers used by chromascope
 
 For more info, run any command with the \`--help\` flag:
@@ -18,6 +19,7 @@ For more info, run any command with the \`--help\` flag:
   $ chromascope snapshot --help
   $ chromascope compare --help
   $ chromascope clean --help
+  $ chromascope doctor --help
   $ chromascope install --help
 
 Options:
@@ -28,7 +30,8 @@ Exit codes:
   0  Success: every comparison is within --fail-above, or no --fail-above was given, or compare --update
   1  At least one comparison is above --fail-above
   2  Usage error: unknown command or option, missing or invalid argument
-  3  Runtime error: navigation failed, selector not found, timeout, browser or baseline missing
+  3  Runtime error: navigation failed, selector not found, timeout, browser or baseline missing,
+     or a doctor check failed
 
 Error codes:
   Usage (exit 2):   INVALID_URL, INVALID_OPTION, INVALID_ARGUMENT, MISSING_ARGUMENT, UNKNOWN_COMMAND,
@@ -55,7 +58,8 @@ Exit codes:
   0  Success: every comparison is within --fail-above, or no --fail-above was given, or compare --update
   1  At least one comparison is above --fail-above
   2  Usage error: unknown command or option, missing or invalid argument
-  3  Runtime error: navigation failed, selector not found, timeout, browser or baseline missing
+  3  Runtime error: navigation failed, selector not found, timeout, browser or baseline missing,
+     or a doctor check failed
 
 Error codes:
   Usage (exit 2):   INVALID_URL, INVALID_OPTION, INVALID_ARGUMENT, MISSING_ARGUMENT, UNKNOWN_COMMAND,
@@ -95,11 +99,17 @@ Options:
   --out <dir>                  Save the before, after and diff images in exactly this folder, without a run folder 
   -h, --help                   Display this message 
 
+Examples:
+  $ chromascope compare localhost:3000/pricing --element .card --fail-above 0
+  $ chromascope compare --name homepage --json
+  $ chromascope compare localhost:3000/pricing --element .card --update
+
 Exit codes:
   0  Success: every comparison is within --fail-above, or no --fail-above was given, or compare --update
   1  At least one comparison is above --fail-above
   2  Usage error: unknown command or option, missing or invalid argument
-  3  Runtime error: navigation failed, selector not found, timeout, browser or baseline missing
+  3  Runtime error: navigation failed, selector not found, timeout, browser or baseline missing,
+     or a doctor check failed
 
 Error codes:
   Usage (exit 2):   INVALID_URL, INVALID_OPTION, INVALID_ARGUMENT, MISSING_ARGUMENT, UNKNOWN_COMMAND,
@@ -137,11 +147,51 @@ Options:
   --out <dir>                  Save the screenshots and diffs as png in exactly this folder, without a run folder 
   -h, --help                   Display this message 
 
+Examples:
+  $ chromascope diff localhost:3000
+  $ chromascope diff localhost:3000/pricing --element .card --browsers chromium,webkit
+  $ chromascope diff https://example.com --save-diff
+  $ chromascope diff localhost:3000 --json --out /tmp/diff --fail-above 1
+
 Exit codes:
   0  Success: every comparison is within --fail-above, or no --fail-above was given, or compare --update
   1  At least one comparison is above --fail-above
   2  Usage error: unknown command or option, missing or invalid argument
-  3  Runtime error: navigation failed, selector not found, timeout, browser or baseline missing
+  3  Runtime error: navigation failed, selector not found, timeout, browser or baseline missing,
+     or a doctor check failed
+
+Error codes:
+  Usage (exit 2):   INVALID_URL, INVALID_OPTION, INVALID_ARGUMENT, MISSING_ARGUMENT, UNKNOWN_COMMAND,
+                    INVALID_SELECTOR, CAPTURE_OPTION_CONFLICT
+  Runtime (exit 3): BROWSER_NOT_INSTALLED, NAVIGATION_FAILED, SELECTOR_TIMEOUT, BASELINE_NOT_FOUND,
+                    BASELINE_INVALID, UNKNOWN_ERROR
+"
+`;
+
+exports[`help and version > should print the help for doctor 1`] = `
+"chromascope/<version>
+
+Usage:
+  $ chromascope doctor
+
+Options:
+  -v, --verbose          Print debug output on stderr 
+  -q, --quiet            Print no progress on stderr. Errors still print 
+  --json                 Print the result, or the error, as one JSON document on stdout 
+  --browsers <list>      Comma separated browsers to check (default: chromium,webkit,firefox) 
+  -o, --folder <folder>  Set the base folder for chromascope runs (default: chromascope-runs)
+  -h, --help             Display this message 
+
+Examples:
+  $ chromascope doctor
+  $ chromascope doctor --browsers chromium --json
+
+Exit codes:
+  0  Success: every comparison is within --fail-above, or no --fail-above was given, or compare --update
+  1  At least one comparison is above --fail-above
+  2  Usage error: unknown command or option, missing or invalid argument
+  3  Runtime error: navigation failed, selector not found, timeout, browser or baseline missing,
+     or a doctor check failed
 
 Error codes:
   Usage (exit 2):   INVALID_URL, INVALID_OPTION, INVALID_ARGUMENT, MISSING_ARGUMENT, UNKNOWN_COMMAND,
@@ -175,11 +225,16 @@ Options:
   --name <name>              Baseline name (default: derived from the URL and --element) 
   -h, --help                 Display this message 
 
+Examples:
+  $ chromascope snapshot localhost:3000/pricing --element .card
+  $ chromascope snapshot localhost:3000 --browsers chromium,firefox --mask .timestamp
+
 Exit codes:
   0  Success: every comparison is within --fail-above, or no --fail-above was given, or compare --update
   1  At least one comparison is above --fail-above
   2  Usage error: unknown command or option, missing or invalid argument
-  3  Runtime error: navigation failed, selector not found, timeout, browser or baseline missing
+  3  Runtime error: navigation failed, selector not found, timeout, browser or baseline missing,
+     or a doctor check failed
 
 Error codes:
   Usage (exit 2):   INVALID_URL, INVALID_OPTION, INVALID_ARGUMENT, MISSING_ARGUMENT, UNKNOWN_COMMAND,

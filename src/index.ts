@@ -1,12 +1,21 @@
 #!/usr/bin/env node
 import cac, { type Command } from "cac";
+import { chromium, firefox, webkit } from "playwright";
 import { version } from "../package.json";
 import { compare } from "./commands/compare";
 import { diff } from "./commands/diff";
 import { snapshot } from "./commands/snapshot";
 import { createChromascopeContext } from "./context";
 import { createBaselineStore, DEFAULT_BASELINE_DIR, deriveBaselineName, parseBaselineName } from "./lib/baselines";
-import { type CaptureFlags, parseBase, parseCaptureOptions, parseImageOptions } from "./lib/capture-options";
+import {
+  BROWSERS,
+  type CaptureFlags,
+  parseBase,
+  parseBrowsers,
+  parseCaptureOptions,
+  parseImageOptions,
+} from "./lib/capture-options";
+import { runDoctor } from "./lib/doctor";
 import { EXIT_CODES, exitCodeFor, formatError, toChromascopeError, toErrorResult, usageError } from "./lib/errors";
 import {
   formatClean,
@@ -14,6 +23,8 @@ import {
   formatComparePlain,
   formatDiffDecorated,
   formatDiffPlain,
+  formatDoctorDecorated,
+  formatDoctorPlain,
   formatJson,
   formatSnapshotDecorated,
   formatSnapshotPlain,
@@ -93,6 +104,10 @@ withComparisonOptions(
     default: "chromascope-runs",
   })
   .option("--out <dir>", "Save the screenshots and diffs as png in exactly this folder, without a run folder")
+  .example("  $ chromascope diff localhost:3000")
+  .example("  $ chromascope diff localhost:3000/pricing --element .card --browsers chromium,webkit")
+  .example("  $ chromascope diff https://example.com --save-diff")
+  .example("  $ chromascope diff localhost:3000 --json --out /tmp/diff --fail-above 1")
   .action(async (url: string, options: Flags) => {
     configureOutput(options);
     const normalizedUrl = parseUrl(url);
@@ -131,6 +146,8 @@ withBaselineDir(
   ),
 )
   .option("--name <name>", "Baseline name (default: derived from the URL and --element)")
+  .example("  $ chromascope snapshot localhost:3000/pricing --element .card")
+  .example("  $ chromascope snapshot localhost:3000 --browsers chromium,firefox --mask .timestamp")
   .action(async (url: string, options: Flags) => {
     configureOutput(options);
     const normalizedUrl = parseUrl(url);
@@ -166,6 +183,9 @@ withBaselineDir(
     default: "chromascope-runs",
   })
   .option("--out <dir>", "Save the before, after and diff images in exactly this folder, without a run folder")
+  .example("  $ chromascope compare localhost:3000/pricing --element .card --fail-above 0")
+  .example("  $ chromascope compare --name homepage --json")
+  .example("  $ chromascope compare localhost:3000/pricing --element .card --update")
   .action(async (url: string | undefined, options: Flags) => {
     configureOutput(options);
     if (url === undefined && options.name === undefined) {
@@ -219,6 +239,31 @@ withBaselineDir(
   return EXIT_CODES.ok;
 });
 
+withOutputOptions(
+  cli.command("doctor", "Check that Node, the browsers and the output folder are ready for chromascope"),
+)
+  .option("--browsers <list>", `Comma separated browsers to check (default: ${BROWSERS.join(",")})`)
+  .option("-o, --folder <folder>", "Set the base folder for chromascope runs", {
+    default: "chromascope-runs",
+  })
+  .example("  $ chromascope doctor")
+  .example("  $ chromascope doctor --browsers chromium --json")
+  .action(async (options: Flags) => {
+    configureOutput(options);
+    const browserTypes = { chromium, webkit, firefox };
+    const browsers = options.browsers === undefined ? [...BROWSERS] : parseBrowsers(options.browsers);
+    const step = output.step("Checking the environment", "🩺");
+    const result = await runDoctor({
+      browserTypes: browsers.map((browser) => browserTypes[browser]),
+      folder: String(options.folder),
+    });
+    const failed = result.checks.filter((check) => !check.ok).length;
+    if (failed === 0) step.succeed("Every check passed", "🎉");
+    else step.fail(`${failed} ${failed === 1 ? "check" : "checks"} failed`);
+    printResult(result, formatDoctorPlain, formatDoctorDecorated);
+    return result.ok ? EXIT_CODES.ok : EXIT_CODES.runtime;
+  });
+
 cli
   .command("install", "Install the chromium, firefox, and webkit browsers used by chromascope")
   .action(() => installBrowsers());
@@ -231,7 +276,8 @@ cli.help((sections) => [
       "  0  Success: every comparison is within --fail-above, or no --fail-above was given, or compare --update",
       "  1  At least one comparison is above --fail-above",
       "  2  Usage error: unknown command or option, missing or invalid argument",
-      "  3  Runtime error: navigation failed, selector not found, timeout, browser or baseline missing",
+      "  3  Runtime error: navigation failed, selector not found, timeout, browser or baseline missing,",
+      "     or a doctor check failed",
     ].join("\n"),
   },
   {
@@ -249,6 +295,10 @@ cli.version(version);
 /** Parses the arguments and runs the command. Resolves to the exit code. */
 const run = async (): Promise<number> => {
   cli.parse(process.argv, { run: false });
+  if (!cli.matchedCommand && process.argv.length <= 2) {
+    cli.outputHelp();
+    return EXIT_CODES.ok;
+  }
   if (!cli.matchedCommand && cli.args.length > 0) {
     throw usageError(
       "UNKNOWN_COMMAND",

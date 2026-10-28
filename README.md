@@ -28,6 +28,8 @@ Chromascope needs the Chromium, Firefox, and WebKit browsers from Playwright. In
 chromascope install
 ```
 
+Run `chromascope doctor` to check that everything is ready, or to find out why a run fails before it captures anything. Running `chromascope` without a command prints the help.
+
 ### Commands
 
 ```bash
@@ -42,6 +44,7 @@ Commands:
   snapshot <url>  Capture a baseline of the URL for a later compare
   compare [url]   Capture the URL again and compare each browser against its baseline
   clean [name]    Delete the baseline with this name, or every baseline
+  doctor          Check that Node, the browsers and the output folder are ready for chromascope
   install         Install the chromium, firefox, and webkit browsers used by chromascope
 
 For more info, run any command with the `--help` flag:
@@ -49,6 +52,7 @@ For more info, run any command with the `--help` flag:
   $ chromascope snapshot --help
   $ chromascope compare --help
   $ chromascope clean --help
+  $ chromascope doctor --help
   $ chromascope install --help
 
 Options:
@@ -59,7 +63,8 @@ Exit codes:
   0  Success: every comparison is within --fail-above, or no --fail-above was given, or compare --update
   1  At least one comparison is above --fail-above
   2  Usage error: unknown command or option, missing or invalid argument
-  3  Runtime error: navigation failed, selector not found, timeout, browser or baseline missing
+  3  Runtime error: navigation failed, selector not found, timeout, browser or baseline missing,
+     or a doctor check failed
 
 Error codes:
   Usage (exit 2):   INVALID_URL, INVALID_OPTION, INVALID_ARGUMENT, MISSING_ARGUMENT, UNKNOWN_COMMAND,
@@ -101,11 +106,18 @@ Options:
   --out <dir>                  Save the screenshots and diffs as png in exactly this folder, without a run folder
   -h, --help                   Display this message
 
+Examples:
+  $ chromascope diff localhost:3000
+  $ chromascope diff localhost:3000/pricing --element .card --browsers chromium,webkit
+  $ chromascope diff https://example.com --save-diff
+  $ chromascope diff localhost:3000 --json --out /tmp/diff --fail-above 1
+
 Exit codes:
   0  Success: every comparison is within --fail-above, or no --fail-above was given, or compare --update
   1  At least one comparison is above --fail-above
   2  Usage error: unknown command or option, missing or invalid argument
-  3  Runtime error: navigation failed, selector not found, timeout, browser or baseline missing
+  3  Runtime error: navigation failed, selector not found, timeout, browser or baseline missing,
+     or a doctor check failed
 
 Error codes:
   Usage (exit 2):   INVALID_URL, INVALID_OPTION, INVALID_ARGUMENT, MISSING_ARGUMENT, UNKNOWN_COMMAND,
@@ -198,7 +210,7 @@ import type { CompareResult, DiffResult, ErrorResult } from "chromascope";
 const result: DiffResult | ErrorResult = JSON.parse(stdout);
 ```
 
-It exports `DiffResult`, `CompareResult`, `SnapshotResult`, `CleanResult` and `ErrorResult`, the per-browser `DiffComparison` and `CompareComparison`, and `SchemaVersion`, `BrowserName`, `ImageOptions`, `Viewport`, `WaitUntil` and `Size`.
+It exports `DiffResult`, `CompareResult`, `SnapshotResult`, `CleanResult`, `DoctorResult` and `ErrorResult`, the per-browser `DiffComparison` and `CompareComparison`, the per-check `DoctorCheck`, and `SchemaVersion`, `BrowserName`, `ImageOptions`, `Viewport`, `WaitUntil` and `Size`.
 
 #### Exit codes and errors
 
@@ -207,7 +219,7 @@ It exports `DiffResult`, `CompareResult`, `SnapshotResult`, `CleanResult` and `E
 | `0` | Success: every comparison is within `--fail-above`, or no `--fail-above` was given. `compare --update` always exits `0` |
 | `1` | At least one comparison is above `--fail-above` |
 | `2` | Usage error: unknown command or option, missing or invalid argument |
-| `3` | Runtime error: navigation failed, selector not found, timeout, browser missing |
+| `3` | Runtime error: navigation failed, selector not found, timeout, browser missing, or a `doctor` check failed |
 
 `--fail-above <percent>` makes `diff` exit `1` when any browser's pixel change percentage is above the value, so a CI job or agent can gate on visual drift. `--fail-above 0` fails on any change.
 
@@ -270,6 +282,7 @@ Chromascope never prompts for input, so CI jobs, scripts and coding agents can c
 - **Exit codes have a meaning:** `0` within the threshold, `1` above `--fail-above`, `2` usage error, `3` runtime error. Every error has a stable code and a hint. See [Exit codes and errors](#exit-codes-and-errors).
 - **Artifacts have predictable paths.** `--out <dir>` writes the images to exactly `<dir>`, every printed path is absolute, and the file names are stable. See [Artifacts](#artifacts).
 - **`localhost` URLs default to `http://`**, so a local dev server needs no scheme.
+- **The CLI explains itself.** `chromascope --help` and each command's `--help` list the options, exit codes, error codes and examples. `chromascope doctor` checks the setup. See [Doctor](#doctor).
 
 A worked example: diff a local page, read the JSON, open the diff image.
 
@@ -281,6 +294,21 @@ echo $?   # 0 within 1%, 1 above it, 2 for a wrong command, 3 if the page or a b
 `result.json` holds one document. Read `comparisons[].pixelChangePercentage` to decide whether a change matters, and open the file in `comparisons[].diffPath`, like `/tmp/pricing-diff/diff-chromium-webkit.png`, to see where the browsers differ. If the run fails, the document is `{ "schemaVersion": 1, "error": { "code", "message", "hint" } }`. Branch on `error.code` and follow the `hint`.
 
 To check a UI change in a single browser instead, see [Verify a UI change](#verify-a-ui-change).
+
+### Doctor
+
+`chromascope doctor` checks that chromascope can run: that the Node version matches `engines.node` in `package.json`, that Playwright can launch each browser, and that the output folder (`--folder`, default `chromascope-runs`) can be created and written. It writes nothing to disk. It prints one line per check, with a fix for each failed check, and exits `3` if any check fails:
+
+```
+$ chromascope doctor
+ok node: node 22.12.0, needs >=22.12
+ok chromium: chromium launches
+ok webkit: webkit launches
+fail firefox: firefox is not installed (fix: run `chromascope install` to install the browsers)
+ok folder: /home/me/app/chromascope-runs is writable
+```
+
+`--browsers <list>` checks only some browsers. `--json` prints `{ "schemaVersion": 1, "command": "doctor", "ok", "checks": [{ "name", "ok", "message", "fix" }] }`, where `fix` is `null` for a passing check. Its TypeScript type is `DoctorResult`.
 
 ### Verify a UI change
 
@@ -356,11 +384,16 @@ Options:
   --name <name>              Baseline name (default: derived from the URL and --element)
   -h, --help                 Display this message
 
+Examples:
+  $ chromascope snapshot localhost:3000/pricing --element .card
+  $ chromascope snapshot localhost:3000 --browsers chromium,firefox --mask .timestamp
+
 Exit codes:
   0  Success: every comparison is within --fail-above, or no --fail-above was given, or compare --update
   1  At least one comparison is above --fail-above
   2  Usage error: unknown command or option, missing or invalid argument
-  3  Runtime error: navigation failed, selector not found, timeout, browser or baseline missing
+  3  Runtime error: navigation failed, selector not found, timeout, browser or baseline missing,
+     or a doctor check failed
 
 Error codes:
   Usage (exit 2):   INVALID_URL, INVALID_OPTION, INVALID_ARGUMENT, MISSING_ARGUMENT, UNKNOWN_COMMAND,
@@ -400,11 +433,17 @@ Options:
   --out <dir>                  Save the before, after and diff images in exactly this folder, without a run folder
   -h, --help                   Display this message
 
+Examples:
+  $ chromascope compare localhost:3000/pricing --element .card --fail-above 0
+  $ chromascope compare --name homepage --json
+  $ chromascope compare localhost:3000/pricing --element .card --update
+
 Exit codes:
   0  Success: every comparison is within --fail-above, or no --fail-above was given, or compare --update
   1  At least one comparison is above --fail-above
   2  Usage error: unknown command or option, missing or invalid argument
-  3  Runtime error: navigation failed, selector not found, timeout, browser or baseline missing
+  3  Runtime error: navigation failed, selector not found, timeout, browser or baseline missing,
+     or a doctor check failed
 
 Error codes:
   Usage (exit 2):   INVALID_URL, INVALID_OPTION, INVALID_ARGUMENT, MISSING_ARGUMENT, UNKNOWN_COMMAND,
@@ -431,7 +470,8 @@ Exit codes:
   0  Success: every comparison is within --fail-above, or no --fail-above was given, or compare --update
   1  At least one comparison is above --fail-above
   2  Usage error: unknown command or option, missing or invalid argument
-  3  Runtime error: navigation failed, selector not found, timeout, browser or baseline missing
+  3  Runtime error: navigation failed, selector not found, timeout, browser or baseline missing,
+     or a doctor check failed
 
 Error codes:
   Usage (exit 2):   INVALID_URL, INVALID_OPTION, INVALID_ARGUMENT, MISSING_ARGUMENT, UNKNOWN_COMMAND,
