@@ -295,6 +295,16 @@ echo $?   # 0 within 1%, 1 above it, 2 for a wrong command, 3 if the page or a b
 
 To check a UI change in a single browser instead, see [Verify a UI change](#verify-a-ui-change).
 
+#### Agent skill
+
+The repo ships an agent skill, [`skills/chromascope/SKILL.md`](skills/chromascope/SKILL.md). It tells a coding agent when to reach for chromascope, which commands to run, how to read the JSON and exit codes, and to open the diff images before it calls a change done. Install it with the [`skills`](https://github.com/vercel-labs/skills) CLI, which asks which agents to install it for:
+
+```bash
+npx skills add Shtian/chromascope
+```
+
+Or copy the `skills/chromascope` folder into your agent's skills folder, like `.claude/skills/` in a project or `~/.claude/skills/` for every project with Claude Code. The skill calls `chromascope`, falling back to `npx chromascope`, so the CLI needs no separate install.
+
 ### Doctor
 
 `chromascope doctor` checks that chromascope can run: that the Node version matches `engines.node` in `package.json`, that Playwright can launch each browser, and that the output folder (`--folder`, default `chromascope-runs`) can be created and written. It writes nothing to disk. It prints one line per check, with a fix for each failed check, and exits `3` if any check fails:
