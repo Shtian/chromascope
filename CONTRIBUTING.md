@@ -4,7 +4,7 @@
 
 ```bash
 pnpm install
-pnpm run ci   # lint, test, build
+pnpm run ci   # lint, typecheck, test, build
 ```
 
 `pnpm install` also installs a pre-push git hook that checks your branch has a bump file.

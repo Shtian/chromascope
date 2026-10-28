@@ -22,16 +22,8 @@
   "bugs": {
     "url": "https://github.com/Shtian/chromascope/issues"
   },
-  "main": "./dist/index.js",
-  "module": "./dist/index.mjs",
   "bin": "dist/index.js",
   "type": "module",
-  "exports": {
-    ".": {
-      "require": "./dist/index.js",
-      "import": "./dist/index.mjs"
-    }
-  },
   "files": [
     "dist"
   ],
@@ -42,13 +34,14 @@
   "packageManager": "pnpm@12.15.0",
   "scripts": {
     "dev": "vitest",
-    "build": "tsup src/index.ts --format cjs,esm --minify",
+    "build": "tsdown",
     "lint": "biome check .",
     "format": "biome format --write .",
     "test": "vitest run",
-    "ci": "pnpm run lint && pnpm run test && pnpm run build",
+    "ci": "pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run build",
     "prepare": "simple-git-hooks",
-    "postinstall": "echo 'Installing required playwright browsers...' && npx playwright install chromium webkit firefox"
+    "postinstall": "echo 'Installing required playwright browsers...' && npx playwright install chromium webkit firefox",
+    "typecheck": "tsc"
   },
   "simple-git-hooks": {
     "pre-push": "[ ! -d .bumpy ] || pnpm exec bumpy check --hook pre-push"
@@ -63,8 +56,8 @@
     "@types/pngjs": "^6.0.1",
     "@varlock/bumpy": "^1.18.1",
     "simple-git-hooks": "^2.14.0",
-    "tsup": "^6.7.0",
-    "typescript": "^5.0.3",
+    "tsdown": "^0.23.2",
+    "typescript": "^7.0.2",
     "vitest": "^0.29.8"
   },
   "dependencies": {
