@@ -33,12 +33,14 @@
   },
   "packageManager": "pnpm@12.15.0",
   "scripts": {
-    "dev": "vitest",
+    "dev": "vitest --project unit",
     "build": "tsdown",
     "lint": "biome check .",
     "format": "biome format --write .",
-    "test": "vitest run",
-    "ci": "pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run build",
+    "test": "vitest run --project unit",
+    "test:coverage": "vitest run --project unit --coverage",
+    "test:integration": "vitest run --project integration --project e2e",
+    "ci": "pnpm run lint && pnpm run typecheck && pnpm run test:coverage && pnpm run build",
     "prepare": "simple-git-hooks",
     "typecheck": "tsc --noEmit"
   },
@@ -50,10 +52,11 @@
     "@types/node": "^22.20.5",
     "@types/pngjs": "^6.0.5",
     "@varlock/bumpy": "^1.18.1",
+    "@vitest/coverage-v8": "^5.0.5",
     "simple-git-hooks": "^2.14.0",
     "tsdown": "^0.23.2",
     "typescript": "^7.0.2",
-    "vitest": "^0.29.8"
+    "vitest": "^5.0.5"
   },
   "dependencies": {
     "cac": "^7.1.0",

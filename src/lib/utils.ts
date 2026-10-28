@@ -1,7 +1,20 @@
-const urlRegex =
-  /^(?:(?:https?|ftp):\/\/)?(?:localhost|\S+(?:\.[^\s.]+)+|\[?[0-9a-fA-F:]+\]?)(?::\d+)?(?:\/[\w#!:.?+=&%@!\-/]*)?(?:\?[\w&=]+)?$/i;
+// A scheme followed by a digit is a host and port, like `localhost:3000`.
+const schemeRegex = /^[a-z][a-z\d+.-]*:(?!\d)/i;
+const httpRegex = /^https?:\/\//i;
+const hostnameRegex = /^[^.]+(?:\.[^.]+)+$/;
 
-export const isUrl = (url: string) => urlRegex.test(url);
+/** Returns the URL with `https://` added when it has no scheme, or `undefined` if it isn't an http(s) URL with a host. */
+export const normalizeUrl = (input: string) => {
+  const trimmed = input.trim();
+  const url = schemeRegex.test(trimmed) ? trimmed : `https://${trimmed}`;
+  if (!httpRegex.test(url) || !URL.canParse(url)) return undefined;
+
+  const { hostname, href } = new URL(url);
+  const isValidHost = hostname === "localhost" || hostname.startsWith("[") || hostnameRegex.test(hostname);
+  return isValidHost ? href : undefined;
+};
+
+export const isUrl = (url: string) => normalizeUrl(url) !== undefined;
 
 export const parseCookieOptions = (cookies: string, url: string) => {
   const parsedCookies: Array<{ name: string; value: string; url: string }> = [];

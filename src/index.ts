@@ -6,7 +6,7 @@ import { type ChromascopeOptions, createChromascopeContext } from "./context";
 import { installBrowsers } from "./lib/install";
 import logger from "./lib/logger";
 import spinner from "./lib/spinner";
-import { isUrl, parseThreshold } from "./lib/utils";
+import { normalizeUrl, parseThreshold } from "./lib/utils";
 
 const cli = cac("chromascope");
 
@@ -25,7 +25,8 @@ cli
   })
   .action(async (url: string, options: ChromascopeOptions) => {
     spinner.start("Starting ⚙️");
-    if (!url || !isUrl(url)) {
+    const normalizedUrl = normalizeUrl(url ?? "");
+    if (!normalizedUrl) {
       spinner.fail();
       console.error("Please provide a valid url");
       process.exit(1);
@@ -35,12 +36,10 @@ cli
     logger.setOptions({ verbose: options.verbose });
     logger.debug(`Options provided: ${JSON.stringify(options)}`);
 
-    const httpsUrl = url.startsWith("http") ? url : `https://${url}`;
-
-    logger.debug(`Diffing URL: ${httpsUrl}`);
+    logger.debug(`Diffing URL: ${normalizedUrl}`);
     logger.debug(`Run ID: ${ctx.runId}`);
 
-    const result = await diff(httpsUrl, ctx);
+    const result = await diff(normalizedUrl, ctx);
     spinner.succeed("Diff complete 🎉");
     result.forEach(printResults);
   });

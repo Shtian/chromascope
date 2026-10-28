@@ -20,6 +20,32 @@ jobs:
 
       - run: pnpm run ci
 
+  # Real browsers, so it runs once instead of per Node version.
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/setup@v3
+        with:
+          cache: true
+          require-lockfile: true
+
+      - id: playwright
+        name: Resolve Playwright version
+        run: echo "version=$(node -p 'require("playwright/package.json").version')" >> "$GITHUB_OUTPUT"
+      - id: playwright-cache
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+      # Browsers come from the cache, but their system dependencies don't.
+      - if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: pnpm exec playwright install --with-deps chromium firefox webkit
+      - if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: pnpm exec playwright install-deps chromium firefox webkit
+
+      - run: pnpm run test:integration
+
   # Separate job so a missing bump file doesn't hide test results, and so it
   # finishes in seconds without installing dependencies.
   bump-file:
