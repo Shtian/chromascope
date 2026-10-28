@@ -6,7 +6,9 @@ import {
   baselineNotFound,
   type CaptureConflict,
   captureConflictError,
+  deriveBaselineName,
   findCaptureConflicts,
+  withoutDefaults,
 } from "./baselines";
 import type { BrowserName, ImageOptions } from "./capture-options";
 import { compareImages } from "./image";
@@ -50,13 +52,15 @@ export type ComparisonPlan<B extends StoredBaseline> = {
  */
 export const planComparison = <B extends StoredBaseline>(input: PlanComparisonInput<B>): ComparisonPlan<B> => {
   const { name, baseline, given, update } = input;
-  const hint = { name: input.nameGiven ? name : undefined, baselineDir: input.baselineDir };
+  const { baselineDir } = input;
 
   if (!baseline) {
     throw baselineNotFound(`no baseline named ${JSON.stringify(name)} in ${input.root}`, {
-      ...hint,
       url: input.url,
-      element: given.element ?? null,
+      name: input.nameGiven ? name : undefined,
+      capture: given,
+      browsers: input.browsers ?? undefined,
+      baselineDir,
     });
   }
   const { metadata } = baseline;
@@ -67,11 +71,15 @@ export const planComparison = <B extends StoredBaseline>(input: PlanComparisonIn
   const browsers = input.browsers ?? metadata.browsers;
   const absent = browsers.filter((browser) => !baseline.has(browser));
   if (absent.length > 0) {
+    // Recapture every browser with the stored options, so the baseline stays consistent and `compare` doesn't conflict.
+    const url = input.url ?? metadata.url;
+    const derivesName = deriveBaselineName(url, metadata.capture.element) === name;
     throw baselineNotFound(`baseline ${JSON.stringify(name)} has no ${absent.join(", ")} capture`, {
-      ...hint,
-      url: input.url ?? metadata.url,
-      element: metadata.capture.element,
+      url,
+      name: input.nameGiven || !derivesName ? name : undefined,
+      capture: withoutDefaults(metadata.capture),
       browsers: [...new Set([...metadata.browsers, ...browsers])],
+      baselineDir,
     });
   }
 

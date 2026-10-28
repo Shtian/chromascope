@@ -10,7 +10,7 @@ import {
   PAGE_HEIGHT,
   startFixtureServer,
 } from "./fixture-server";
-import { runCli } from "./run-cli";
+import { runCli, runShell } from "./run-cli";
 
 /** Changes the colour of `#box`, the element the tests capture with `--element`. */
 const BOX_CHANGE = "#box { background: #0c0; }";
@@ -41,6 +41,9 @@ afterEach(() => {
 });
 
 const chromascope = (...args: string[]) => runCli(tempDir, ...args);
+/** The `snapshot` command in a `BASELINE_NOT_FOUND` hint. */
+const hintedCommand = (stderr: string) =>
+  /^hint: capture one first: (chromascope snapshot .*)$/m.exec(stderr)?.[1] ?? "";
 const real = (...segments: string[]) => path.join(fs.realpathSync(tempDir), ...segments);
 const baselines = (...segments: string[]) => real(".chromascope", "baselines", ...segments);
 const json = async (...args: string[]) => {
@@ -98,7 +101,9 @@ describe("compare", () => {
     await chromascope("snapshot", server.url, "--browsers", "chromium,firefox");
     const { code, stdout } = await chromascope("compare", server.url);
     expect(code).toBe(0);
-    expect(stdout).toMatch(/^chromium 0\.00% 0px 1280x720->1280x720 same-size \S+\nfirefox 0\.00% 0px 1280x720->1280x720 same-size \S+\n$/);
+    expect(stdout).toMatch(
+      /^chromium 0\.00% 0px 1280x720->1280x720 same-size \S+\nfirefox 0\.00% 0px 1280x720->1280x720 same-size \S+\n$/,
+    );
   });
 
   it("should exit 1 above --fail-above and keep the before, after and diff images", async () => {
@@ -150,6 +155,57 @@ describe("compare", () => {
     expect(stderr).toContain(`error[BASELINE_NOT_FOUND]: no baseline named "${derivedName}__box"`);
     expect(stderr).toContain(`hint: capture one first: chromascope snapshot ${server.url} --element '#box'\n`);
     expect(fs.existsSync(real(".chromascope"))).toBe(false);
+  });
+
+  it("should hint the exact snapshot command, so compare with the same flags passes after running it", async () => {
+    const flags = [
+      "--element",
+      "#box",
+      "--viewport",
+      "400x300",
+      "--device-scale-factor",
+      "2",
+      "--wait-for",
+      "#box",
+      "--wait-until",
+      "domcontentloaded",
+      "--mask",
+      "#tall",
+      "--mask",
+      "div[id='tall'] > p",
+      "--browsers",
+      "firefox",
+      "--baseline-dir",
+      "my baselines",
+    ];
+    const missing = await chromascope("compare", server.url, ...flags);
+    expect(missing.code).toBe(3);
+    const command = hintedCommand(missing.stderr);
+    expect(command).toContain("--mask '#tall' --mask 'div[id='\\''tall'\\''] > p'");
+
+    expect((await runShell(tempDir, command)).code).toBe(0);
+    const { code, result } = await json("compare", server.url, ...flags, "--fail-above", "0");
+    expect(code).toBe(0);
+    expect(result.options).toMatchObject({
+      element: "#box",
+      viewport: { width: 400, height: 300 },
+      mask: ["#tall", "div[id='tall'] > p"],
+    });
+  });
+
+  it("should hint a snapshot command that recaptures a missing browser with the baseline's options", async () => {
+    await chromascope("snapshot", server.url, "--viewport", "400x300", "--full-page", "--mask", "#box");
+    const missing = await chromascope("compare", server.url, "--browsers", "firefox");
+    expect(missing.code).toBe(3);
+    const command = hintedCommand(missing.stderr);
+    expect(command).toBe(
+      `chromascope snapshot ${server.url} --viewport 400x300 --full-page --mask '#box' --browsers chromium,firefox`,
+    );
+
+    expect((await runShell(tempDir, command)).code).toBe(0);
+    const { code, result } = await json("compare", server.url, "--browsers", "firefox", "--fail-above", "0");
+    expect(code).toBe(0);
+    expect(result.options).toMatchObject({ viewport: { width: 400, height: 300 }, fullPage: true, mask: ["#box"] });
   });
 
   it("should exit 2 naming the capture option that differs from the baseline", async () => {

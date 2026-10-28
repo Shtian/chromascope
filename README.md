@@ -292,7 +292,7 @@ Every printed artifact path is absolute. The file names are stable, so the scree
 Things to know:
 
 - `snapshot` captures Chromium by default. Pass `--browsers chromium,firefox` to capture more. A bare `compare` compares every browser in the baseline, and `--browsers` picks some of them.
-- `snapshot` always replaces an existing baseline with the same name. `compare` never creates one: without a baseline it exits `3` with `BASELINE_NOT_FOUND` and the `snapshot` command to run.
+- `snapshot` always replaces an existing baseline with the same name. `compare` never creates one: without a baseline it exits `3` with `BASELINE_NOT_FOUND` and the exact `snapshot` command to run, with the capture options you gave `compare`. When only a browser is missing, the command recaptures every browser with the baseline's stored capture options, so `compare` runs without a conflict afterwards.
 - With `--name`, `compare` can leave out the URL and captures the one stored in the baseline.
 - `compare` reuses the baseline's viewport, device scale factor, element, full page, waits and masks. Passing one of them with a different value is a usage error (`CAPTURE_OPTION_CONFLICT`, exit `2`); run `snapshot` again, or accept the new capture with `compare --update`, which stores the new options too and drops the browsers it didn't capture. `--cookie`, `--timeout`, `--threshold` and `--fail-above` can always be changed.
 - `--mask <selector>` hides dynamic parts of the page, like timestamps or ads, behind a solid box. Repeat it to mask several. It works for `diff` too.

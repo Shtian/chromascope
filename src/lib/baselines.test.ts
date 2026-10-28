@@ -12,6 +12,7 @@ import {
   findCaptureConflicts,
   parseBaselineName,
   snapshotCommand,
+  withoutDefaults,
 } from "./baselines";
 import { DEFAULT_IMAGE_OPTIONS } from "./capture-options";
 
@@ -117,7 +118,7 @@ describe("snapshotCommand", () => {
       snapshotCommand({
         url: "http://localhost:3000/a?b=c",
         name: "pricing",
-        element: "#main .card",
+        capture: { element: "#main .card" },
         browsers: ["chromium", "firefox"],
         baselineDir: "my baselines",
       }),
@@ -126,15 +127,57 @@ describe("snapshotCommand", () => {
     );
   });
 
+  it("should pass every image option, repeating --mask", () => {
+    expect(
+      snapshotCommand({
+        url: "http://localhost:3000/",
+        capture: {
+          viewport: { width: 400, height: 300 },
+          deviceScaleFactor: 2,
+          element: "#box",
+          fullPage: true,
+          waitFor: ".ready",
+          waitUntil: "networkidle",
+          mask: ["#clock", ".ad banner"],
+        },
+      }),
+    ).toBe(
+      "chromascope snapshot http://localhost:3000/ --viewport 400x300 --device-scale-factor 2 --element '#box' --full-page --wait-for .ready --wait-until networkidle --mask '#clock' --mask '.ad banner'",
+    );
+  });
+
+  it("should leave out image options that are off or empty", () => {
+    expect(
+      snapshotCommand({
+        url: "http://localhost:3000/",
+        capture: { element: null, waitFor: null, fullPage: false, mask: [] },
+      }),
+    ).toBe("chromascope snapshot http://localhost:3000/");
+  });
+
   it("should leave out what wasn't given, and use a placeholder for a missing URL", () => {
     expect(snapshotCommand({ url: null })).toBe("chromascope snapshot <url>");
     expect(snapshotCommand({ url: "http://localhost:3000/" })).toBe("chromascope snapshot http://localhost:3000/");
   });
 
   it("should escape single quotes", () => {
-    expect(snapshotCommand({ url: null, element: "[title='x']" })).toBe(
-      "chromascope snapshot <url> --element '[title='\\''x'\\'']'",
+    expect(snapshotCommand({ url: null, capture: { element: "[title='x']", mask: ["a[href$='.pdf']"] } })).toBe(
+      "chromascope snapshot <url> --element '[title='\\''x'\\'']' --mask 'a[href$='\\''.pdf'\\'']'",
     );
+  });
+});
+
+describe("withoutDefaults", () => {
+  it("should keep only the image options that differ from the defaults", () => {
+    expect(withoutDefaults(DEFAULT_IMAGE_OPTIONS)).toEqual({});
+    expect(
+      withoutDefaults({
+        ...DEFAULT_IMAGE_OPTIONS,
+        viewport: { width: 400, height: 300 },
+        mask: ["#clock"],
+        fullPage: true,
+      }),
+    ).toEqual({ viewport: { width: 400, height: 300 }, mask: ["#clock"], fullPage: true });
   });
 });
 

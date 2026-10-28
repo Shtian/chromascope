@@ -69,6 +69,24 @@ describe("planComparison", () => {
     );
   });
 
+  it("should put every image option that was given in the snapshot command", () => {
+    expect(() =>
+      plan({
+        baseline: undefined,
+        name: "127-0-0-1-3000__box",
+        nameGiven: false,
+        url: "http://127.0.0.1:3000/",
+        browsers: ["firefox"],
+        given: { element: "#box", viewport: { width: 400, height: 300 }, mask: ["#clock", ".a b"], fullPage: true },
+        baselineDir: "my baselines",
+      }),
+    ).toThrow(
+      expect.objectContaining({
+        hint: "capture one first: chromascope snapshot http://127.0.0.1:3000/ --viewport 400x300 --element '#box' --full-page --mask '#clock' --mask '.a b' --browsers firefox --baseline-dir 'my baselines'",
+      }),
+    );
+  });
+
   it("should fail on a capture option that differs from the baseline's", () => {
     expect(() => plan({ given: { viewport: { width: 800, height: 600 } } })).toThrow(
       expect.objectContaining({ code: "CAPTURE_OPTION_CONFLICT" }),
@@ -82,14 +100,35 @@ describe("planComparison", () => {
     expect(conflicts).toEqual([{ flag: "--viewport", given: "800x600", stored: "1280x720" }]);
   });
 
-  it("should fail for a browser without a baseline, with the snapshot command for every browser", () => {
-    expect(() => plan({ browsers: ["webkit", "chromium"] })).toThrow(
+  it("should fail for a browser without a baseline, with the snapshot command that recaptures it the same way", () => {
+    const baseline = stored({
+      capture: {
+        ...metadata.capture,
+        viewport: { width: 400, height: 300 },
+        waitUntil: "networkidle",
+        mask: ["#clock"],
+      },
+    });
+    expect(() => plan({ baseline, browsers: ["webkit", "chromium"] })).toThrow(
       expect.objectContaining({
         code: "BASELINE_NOT_FOUND",
         message: 'baseline "home" has no webkit capture',
-        hint: expect.stringContaining("--browsers chromium,firefox,webkit"),
+        hint: "capture one first: chromascope snapshot http://localhost:3000/ --name home --viewport 400x300 --element '#box' --wait-until networkidle --mask '#clock' --browsers chromium,firefox,webkit",
       }),
     );
+  });
+
+  it("should name the baseline in the snapshot command when the stored options derive another name", () => {
+    const hint = (name: string) => {
+      try {
+        plan({ name, nameGiven: false, url: "http://localhost:3000/", browsers: ["webkit"] });
+      } catch (error) {
+        return (error as { hint: string }).hint;
+      }
+    };
+    // The baseline has `--element #box`, so the URL and element derive `localhost-3000__box`.
+    expect(hint("localhost-3000__box")).not.toContain("--name");
+    expect(hint("localhost-3000")).toContain("--name localhost-3000 ");
   });
 });
 

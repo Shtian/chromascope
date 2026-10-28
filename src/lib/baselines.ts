@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import type { BrowserName, ImageOptions } from "./capture-options";
+import { type BrowserName, DEFAULT_IMAGE_OPTIONS, type ImageOptions } from "./capture-options";
 import { runtimeError, usageError } from "./errors";
 
 /** Where baselines live unless `--baseline-dir` says otherwise, relative to the working directory. */
@@ -100,19 +100,40 @@ export const captureConflictError = (conflicts: CaptureConflict[]) =>
 /** Quotes an argument for a POSIX shell, unless it is safe as is. */
 const quote = (arg: string) => (/^[\w@%+=:,./-]+$/.test(arg) ? arg : `'${arg.replaceAll("'", "'\\''")}'`);
 
+/** The image options that differ from the defaults, so a command can leave out the rest. */
+export const withoutDefaults = (capture: ImageOptions): Partial<ImageOptions> =>
+  Object.fromEntries(
+    (Object.keys(optionFlags) as Array<keyof ImageOptions>)
+      .filter((key) => comparable(key, capture[key]) !== comparable(key, DEFAULT_IMAGE_OPTIONS[key]))
+      .map((key) => [key, capture[key]]),
+  );
+
+/** The flags that pass the image options. Options that are off, empty or not given are left out. */
+const imageOptionArgs = (capture: Partial<ImageOptions>) =>
+  (Object.keys(optionFlags) as Array<keyof ImageOptions>).flatMap((key) => {
+    const flag = optionFlags[key];
+    const value = capture[key];
+    if (value === undefined || value === null || value === false) return [];
+    if (value === true) return [flag];
+    if (key === "viewport") return [flag, describeValue(key, value)];
+    if (Array.isArray(value)) return value.flatMap((item) => [flag, quote(item)]);
+    return [flag, quote(String(value))];
+  });
+
 export type SnapshotCommandOptions = {
   url: string | null;
   name?: string;
-  element?: string | null;
+  /** The image options to pass, like the ones given to `compare` or stored in a baseline. */
+  capture?: Partial<ImageOptions>;
   browsers?: BrowserName[];
   baselineDir?: string;
 };
 
-/** The `chromascope snapshot` command that captures the baseline a `compare` is missing. */
-export const snapshotCommand = ({ url, name, element, browsers, baselineDir }: SnapshotCommandOptions) => {
+/** The exact `chromascope snapshot` command that captures the baseline a `compare` is missing. */
+export const snapshotCommand = ({ url, name, capture = {}, browsers, baselineDir }: SnapshotCommandOptions) => {
   const args = ["chromascope", "snapshot", url === null ? "<url>" : quote(url)];
   if (name) args.push("--name", quote(name));
-  if (element) args.push("--element", quote(element));
+  args.push(...imageOptionArgs(capture));
   if (browsers) args.push("--browsers", browsers.join(","));
   if (baselineDir) args.push("--baseline-dir", quote(baselineDir));
   return args.join(" ");
