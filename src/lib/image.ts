@@ -16,6 +16,7 @@ export type FormattableResult = {
   pixelChange: number;
   pixelChangePercentage: number;
   diffPath: string;
+  screenshotPath: string;
 };
 
 /** Compares two images pixel by pixel. Images of different sizes are compared on the largest canvas. */
@@ -52,13 +53,18 @@ export const resize = (image: ImageWithMetadata, { width, height }: Size): Image
   return { data, width, height };
 };
 
+/** Lines for the Chromium base screenshot. Empty when the screenshot wasn't saved. */
+export const formatBaseResult = (screenshotPath: string) =>
+  screenshotPath ? ["┌─ 🌐 Chromium (base)", `└─ 👉 Screenshot stored at ${screenshotPath}`] : [];
+
 export const formatResult = (res: FormattableResult) => {
-  const lines = [
-    `┌─ ${res.browserName}`,
-    `${res.diffPath ? "├─" : "└─"} 👉 ${res.pixelChangePercentage.toFixed(2)}% pixel change compared to Chromium (${
-      res.pixelChange
-    }px)`,
+  const details = [
+    `👉 ${res.pixelChangePercentage.toFixed(2)}% pixel change compared to Chromium (${res.pixelChange}px)`,
   ];
-  if (res.diffPath) lines.push(`└─ 👉 Visual diff stored at ${res.diffPath}`);
-  return lines;
+  if (res.screenshotPath) details.push(`👉 Screenshot stored at ${res.screenshotPath}`);
+  if (res.diffPath) details.push(`👉 Visual diff stored at ${res.diffPath}`);
+  return [
+    `┌─ ${res.browserName}`,
+    ...details.map((detail, index) => `${index === details.length - 1 ? "└─" : "├─"} ${detail}`),
+  ];
 };

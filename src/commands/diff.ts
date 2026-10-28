@@ -1,20 +1,23 @@
 import fs from "node:fs";
+import path from "node:path";
 import { type Browser, type BrowserType, chromium, firefox, webkit } from "playwright";
 import { PNG } from "pngjs";
 import type { ChromascopeContext } from "../context";
 import { withBrowser } from "../lib/browser";
-import { compareImages, formatResult } from "../lib/image";
+import { compareImages, formatBaseResult, formatResult } from "../lib/image";
 import logger from "../lib/logger";
-import { removeRunFolder } from "../lib/run-folder";
+import { createRunFolder } from "../lib/run-folder";
 import { createSpinner } from "../lib/spinner";
 import { parseCookieOptions } from "../lib/utils";
 
 export type VisualDiffResult = ReturnType<typeof diffScreenshots> & {
   browserName: string;
+  screenshotPath: string;
 };
 
 export const diff = async (link: string, ctx: ChromascopeContext) => {
   logger.setOptions({ verbose: ctx.options.verbose });
+  if (ctx.saveArtifacts) createRunFolder(ctx);
 
   const [chromiumScreenshot, webKitScreenshot, firefoxScreenshot] = await allSettledOrThrow([
     screenshot(chromium, "Chromium", link, ctx),
@@ -25,20 +28,19 @@ export const diff = async (link: string, ctx: ChromascopeContext) => {
   const chromiumWebKitDiff = diffScreenshots(chromiumScreenshot, webKitScreenshot, "chromium-webkit", ctx);
   const chromiumFirefoxDiff = diffScreenshots(chromiumScreenshot, firefoxScreenshot, "chromium-firefox", ctx);
 
-  if (!ctx.options.saveDiff) {
-    ctx.spinner.text = "Cleaning up 🧹";
-    removeRunFolder(ctx.runFolder, ctx.options.folder);
-  }
-
   ctx.spinner.text = "";
 
   const result: Array<VisualDiffResult> = [
-    { ...chromiumWebKitDiff, browserName: "🍎 WebKit" },
-    { ...chromiumFirefoxDiff, browserName: "🦊 Firefox" },
+    { ...chromiumWebKitDiff, browserName: "🍎 WebKit", screenshotPath: screenshotPath("webkit", ctx) },
+    { ...chromiumFirefoxDiff, browserName: "🦊 Firefox", screenshotPath: screenshotPath("firefox", ctx) },
   ];
 
-  return result;
+  return { baseScreenshotPath: screenshotPath("chromium", ctx), result };
 };
+
+/** Absolute path of the browser's screenshot, or `""` when artifacts aren't saved. File names are stable. */
+const screenshotPath = (browserName: string, ctx: ChromascopeContext) =>
+  ctx.saveArtifacts ? path.join(ctx.runFolder, `${browserName}.png`) : "";
 
 /** Waits for every screenshot to settle, so no browser is left running, then throws the first failure. */
 const allSettledOrThrow = async (screenshots: Array<Promise<Buffer>>) => {
@@ -48,8 +50,11 @@ const allSettledOrThrow = async (screenshots: Array<Promise<Buffer>>) => {
   return results.map((result) => (result as PromiseFulfilledResult<Buffer>).value);
 };
 
-export const printResults = (res: VisualDiffResult) => {
-  for (const line of formatResult(res)) logger.log(line);
+export const printResults = ({ baseScreenshotPath, result }: Awaited<ReturnType<typeof diff>>) => {
+  for (const line of formatBaseResult(baseScreenshotPath)) logger.log(line);
+  for (const res of result) {
+    for (const line of formatResult(res)) logger.log(line);
+  }
 };
 
 const screenshot = async (browserType: BrowserType, displayName: string, link: string, ctx: ChromascopeContext) => {
@@ -73,8 +78,8 @@ const captureBrowserScreenshot = async (link: string, browser: Browser, ctx: Chr
   const name = type.name();
   const page = await context.newPage();
   await page.goto(link);
-  const path = ctx.options.saveDiff ? `${ctx.runFolder}/${name}.png` : undefined;
-  logger.debug(`Saving ${name} screenshot to ${path}`);
+  const path = screenshotPath(name, ctx) || undefined;
+  if (path) logger.debug(`Saving ${name} screenshot to ${path}`);
 
   const imageBuffer = ctx.options.element
     ? await page.locator(ctx.options.element).screenshot({ path })
@@ -90,8 +95,8 @@ const diffScreenshots = (screenshotOne: Buffer, screenshotTwo: Buffer, outputNam
   );
 
   let diffPath = "";
-  if (ctx.options.saveDiff) {
-    diffPath = `${ctx.runFolder}/diff-${outputName}.png`;
+  if (ctx.saveArtifacts) {
+    diffPath = path.join(ctx.runFolder, `diff-${outputName}.png`);
     ctx.spinner.text = `Saving ${outputName} diff 🗄️`;
     fs.writeFileSync(diffPath, PNG.sync.write(diff));
   }

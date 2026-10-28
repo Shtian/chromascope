@@ -93,9 +93,12 @@ describe("normalizeUrl", () => {
 });
 
 describe("isLoopbackHost", () => {
-  it.each(["localhost", "app.localhost", "127.0.0.1", "127.255.0.9", "[::1]"])("should treat %j as loopback", (host) => {
-    expect(isLoopbackHost(host)).toBe(true);
-  });
+  it.each(["localhost", "app.localhost", "127.0.0.1", "127.255.0.9", "[::1]"])(
+    "should treat %j as loopback",
+    (host) => {
+      expect(isLoopbackHost(host)).toBe(true);
+    },
+  );
   it.each(["chromascope.dev", "localhost.chromascope.dev", "128.0.0.1", "0.0.0.0", "[::2]", "mylocalhost"])(
     "should not treat %j as loopback",
     (host) => {
