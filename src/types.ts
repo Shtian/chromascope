@@ -16,6 +16,8 @@ export type {
   CompareResult,
   DiffComparison,
   DiffResult,
+  DoctorCheck,
+  DoctorResult,
   ErrorResult,
   Size,
   SnapshotResult,

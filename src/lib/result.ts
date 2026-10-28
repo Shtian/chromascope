@@ -106,6 +106,25 @@ export type SnapshotResult = {
   timings: { totalMs: number; captureMs: Partial<Record<BrowserName, number>> };
 };
 
+/** One check of `chromascope doctor`. */
+export type DoctorCheck = {
+  /** What was checked: `node`, a browser name, or `folder`. */
+  name: string;
+  ok: boolean;
+  message: string;
+  /** How to fix a failed check, or `null` when it passed. */
+  fix: string | null;
+};
+
+/** The result of `chromascope doctor`, as printed by `--json`. */
+export type DoctorResult = {
+  schemaVersion: typeof SCHEMA_VERSION;
+  command: "doctor";
+  /** Whether every check passed. */
+  ok: boolean;
+  checks: DoctorCheck[];
+};
+
 /** The result of `chromascope clean`, as printed by `--json`. */
 export type CleanResult = {
   schemaVersion: typeof SCHEMA_VERSION;

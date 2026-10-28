@@ -1,4 +1,12 @@
-import type { CleanResult, CompareResult, DiffComparison, DiffResult, Size, SnapshotResult } from "./result";
+import type {
+  CleanResult,
+  CompareResult,
+  DiffComparison,
+  DiffResult,
+  DoctorResult,
+  Size,
+  SnapshotResult,
+} from "./result";
 
 const displayNames: Record<string, string> = {
   chromium: "🌐 Chromium",
@@ -83,6 +91,13 @@ export const formatCompareDecorated = ({ comparisons }: CompareResult) =>
       `Visual diff stored at ${comparison.diffPath}`,
     ]),
   );
+
+/** One line per check: `ok` or `fail`, the check name and message, and the fix for a failed check. */
+export const formatDoctorPlain = ({ checks }: DoctorResult) =>
+  checks.map(({ name, ok, message, fix }) => `${ok ? "ok" : "fail"} ${name}: ${message}${fix ? ` (fix: ${fix})` : ""}`);
+
+export const formatDoctorDecorated = ({ checks }: DoctorResult) =>
+  checks.map(({ ok, message, fix }) => `${ok ? "✔" : "✖"} ${message}${fix ? `\n  👉 ${fix}` : ""}`);
 
 /** The deleted folder, if any. */
 export const formatClean = ({ removed }: CleanResult) => (removed ? [removed] : []);

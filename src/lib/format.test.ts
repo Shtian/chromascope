@@ -7,12 +7,21 @@ import {
   formatComparePlain,
   formatDiffDecorated,
   formatDiffPlain,
+  formatDoctorDecorated,
+  formatDoctorPlain,
   formatJson,
   formatResult,
   formatSnapshotDecorated,
   formatSnapshotPlain,
 } from "./format";
-import type { CompareComparison, CompareResult, DiffComparison, DiffResult, SnapshotResult } from "./result";
+import type {
+  CompareComparison,
+  CompareResult,
+  DiffComparison,
+  DiffResult,
+  DoctorResult,
+  SnapshotResult,
+} from "./result";
 
 const comparison = (overrides: Partial<DiffComparison> = {}): DiffComparison => ({
   browser: "webkit",
@@ -242,5 +251,38 @@ describe("formatClean", () => {
       "/app/.chromascope/baselines",
     ]);
     expect(formatClean({ schemaVersion: 1, command: "clean", removed: null })).toEqual([]);
+  });
+});
+
+const doctorResult: DoctorResult = {
+  schemaVersion: 1,
+  command: "doctor",
+  ok: false,
+  checks: [
+    { name: "node", ok: true, message: "node 22.12.0, needs >=22.12", fix: null },
+    {
+      name: "firefox",
+      ok: false,
+      message: "firefox is not installed",
+      fix: "run `chromascope install` to install the browsers",
+    },
+  ],
+};
+
+describe("formatDoctorPlain", () => {
+  it("should print one line per check, with the fix for a failed check", () => {
+    expect(formatDoctorPlain(doctorResult)).toEqual([
+      "ok node: node 22.12.0, needs >=22.12",
+      "fail firefox: firefox is not installed (fix: run `chromascope install` to install the browsers)",
+    ]);
+  });
+});
+
+describe("formatDoctorDecorated", () => {
+  it("should mark each check, with the fix below a failed check", () => {
+    expect(formatDoctorDecorated(doctorResult)).toEqual([
+      "✔ node 22.12.0, needs >=22.12",
+      "✖ firefox is not installed\n  👉 run `chromascope install` to install the browsers",
+    ]);
   });
 });
