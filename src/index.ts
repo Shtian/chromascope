@@ -172,7 +172,7 @@ withBaselineDir(
       throw usageError(
         "MISSING_ARGUMENT",
         "compare needs a URL or --name",
-        "pass the URL you took the snapshot of, or the baseline name with --name",
+        "pass the URL you captured the baseline of, or the baseline name with --name",
       );
     }
     if (options.update && options.clean) {
