@@ -8,8 +8,6 @@ Chromascope captures web pages in real browsers and reports how much they differ
 
 ![chromascope diffing a page across Chromium, WebKit and Firefox, showing the saved visual diff, then failing a CI step with --fail-above](docs/demo.gif)
 
-The demo is recorded with real results from `docs/demo/site`. Rerun it with `pnpm build && node docs/demo/record.mjs` (needs ffmpeg).
-
 ## Usage
 
 Can be installed globally with pnpm|npm|yarn:
