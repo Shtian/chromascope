@@ -13,8 +13,12 @@ The browser a cross-browser diff measures every other browser against.
 _Avoid_: reference browser, main browser
 
 **Capture options**:
-The settings that decide how a page is captured: which browsers, the viewport, the element, what to wait for. Shared by every command that captures a page.
+The settings that decide how a page is captured: which browsers, the viewport, the element, what to wait for. Shared by every command that captures a page. **Image options** are the subset that changes the image.
 _Avoid_: screenshot settings, capture config
+
+**Image options**:
+The capture options that change the captured image: viewport, device scale factor, element, full page, what to wait for, and masks. A baseline stores them, and `compare` must use the same ones.
+_Avoid_: image settings, screenshot options
 
 **Before/after comparison**:
 A comparison of a page captured now against its baseline, in the same browser.
@@ -27,7 +31,7 @@ _Avoid_: live compare, against-compare
 ## Baselines
 
 **Baseline**:
-A stored capture of a page in one browser, kept as the "before" state for a later before/after comparison. Short-lived and local to one working session, never committed.
+A stored capture of a page in one browser, kept with its image options as the "before" state for a later before/after comparison. Short-lived and local to one working session, never committed.
 _Avoid_: snapshot (as a noun), golden image, reference image
 
 **Baseline name**:
