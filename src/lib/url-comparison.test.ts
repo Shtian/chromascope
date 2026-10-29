@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
+import type { BrowserName } from "./capture-options";
 import { pairCaptures } from "./url-comparison";
 
-const capture = (browser: "chromium" | "webkit" | "firefox", image: string, ms: number) => ({
+const capture = (browser: BrowserName, image: string, ms: number) => ({
   browser,
   image: Buffer.from(image),
   ms,

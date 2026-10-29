@@ -511,7 +511,7 @@ firefox 2.17% 434px 200x100->200x100 same-size /home/me/app/chromascope-runs/202
 - It never reads or writes baselines, so `--name`, `--update`, `--clean` and `--baseline-dir` don't exist here.
 - Everything else works like `compare`: the plain output, `before-`, `after-` and `diff-<browser>.png` in a run folder (`--folder`, or exactly `--out`), `--threshold`, and `--fail-above` with the same exit codes.
 
-The `--json` document uses the same envelope as `compare`, with `"command": "versus"`, `beforeUrl` and `afterUrl` instead of `url`, and none of `name`, `baselineDir`, `updated` or `cleaned`. Its TypeScript type is `VersusResult`.
+The `--json` document uses the same envelope as `compare`, with `"command": "versus"`, `beforeUrl` and `afterUrl` instead of `url`, and none of `name`, `baselineDir`, `updated` or `cleaned`. Each browser's `timings.captureMs` adds up both of its captures. Its TypeScript type is `VersusResult`.
 
 ```bash
 $ chromascope versus --help

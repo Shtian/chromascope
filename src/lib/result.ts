@@ -122,6 +122,7 @@ export type VersusResult = {
   /** Absolute path of the run folder with the before, after and diff images. */
   artifactsDir: string;
   comparisons: CompareComparison[];
+  /** Each browser's `captureMs` is the time both of its captures took. */
   timings: Timings;
 };
 

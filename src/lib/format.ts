@@ -76,11 +76,11 @@ export const formatComparePlain = ({ comparisons }: { comparisons: CompareCompar
     ].join(" "),
   );
 
-/** A box per browser with the change compared to `before`, the sizes, and the before, after and diff images. */
-const formatBeforeAfterDecorated = (comparisons: CompareComparison[], before: string) =>
+/** A box per browser with the change compared to `beforeLabel`, the sizes, and the before, after and diff images. */
+const formatBeforeAfterDecorated = (comparisons: CompareComparison[], beforeLabel: string) =>
   comparisons.flatMap((comparison) =>
     box(decoratedName(comparison.browser), [
-      `${percent(comparison.pixelChangePercentage)} pixel change compared to ${before} (${comparison.pixelChange}px)`,
+      `${percent(comparison.pixelChangePercentage)} pixel change compared to ${beforeLabel} (${comparison.pixelChange}px)`,
       `Size ${size(comparison.before)} before, ${size(comparison.after)} after (${comparison.sizeChanged ? "changed: the added area counts as changed" : "unchanged"})`,
       `Before stored at ${comparison.beforePath}`,
       `After stored at ${comparison.afterPath}`,

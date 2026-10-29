@@ -52,6 +52,21 @@ describe("versus", () => {
     expect(vs.stdout).toMatch(/^firefox 0\.00% 0px \S+ same-size \S+\n$/);
   });
 
+  it("should show no change for the same URL twice", async () => {
+    const { code, result } = await json(
+      "versus",
+      before.url,
+      before.url,
+      "--browsers",
+      "chromium",
+      "--fail-above",
+      "0",
+    );
+    expect(code).toBe(0);
+    expect(result).toMatchObject({ beforeUrl: before.url, afterUrl: before.url });
+    expect(result.comparisons[0].pixelChange).toBe(0);
+  });
+
   it("should exit 1 above --fail-above and keep the before, after and diff images of each browser", async () => {
     after.css = BOX_CHANGE;
     const { code, stdout } = await chromascope(
@@ -167,6 +182,7 @@ describe("versus", () => {
       "error[INVALID_OPTION]: Unknown option `--name`",
     ],
     [["http://127.0.0.1:1/", "http://127.0.0.1:2/", "--update"], "error[INVALID_OPTION]: Unknown option `--update`"],
+    [["http://127.0.0.1:1/", "http://127.0.0.1:2/", "--clean"], "error[INVALID_OPTION]: Unknown option `--clean`"],
   ])("should exit 2 for versus %j", async (args, message) => {
     const { code, stdout, stderr } = await chromascope("versus", ...args);
     expect(code).toBe(2);
