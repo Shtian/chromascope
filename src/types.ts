@@ -7,20 +7,24 @@ import type { SCHEMA_VERSION } from "./lib/result";
 export type {
   BrowserName,
   ImageOptions,
+  Size,
   Viewport,
   WaitUntil,
 } from "./lib/capture-options";
+export type { ErrorCode } from "./lib/error-codes";
 export type {
+  CapturedOptions,
   CleanResult,
   CompareComparison,
+  ComparedOptions,
   CompareResult,
   DiffComparison,
   DiffResult,
   DoctorCheck,
   DoctorResult,
   ErrorResult,
-  Size,
   SnapshotResult,
+  Timings,
 } from "./lib/result";
 
 /** The `schemaVersion` of every `--json` document. */

@@ -89,10 +89,10 @@ describe("findCaptureConflicts", () => {
         mask: ["#clock"],
       }),
     ).toEqual([
-      { flag: "--viewport", given: "800x600", stored: "1280x720" },
-      { flag: "--element", given: "#box", stored: "none" },
-      { flag: "--full-page", given: "on", stored: "off" },
-      { flag: "--mask", given: "#clock", stored: "#clock, .ad" },
+      { flag: "--viewport", flagValue: "800x600", baselineValue: "1280x720" },
+      { flag: "--element", flagValue: "#box", baselineValue: "none" },
+      { flag: "--full-page", flagValue: "on", baselineValue: "off" },
+      { flag: "--mask", flagValue: "#clock", baselineValue: "#clock, .ad" },
     ]);
   });
 });
@@ -100,8 +100,8 @@ describe("findCaptureConflicts", () => {
 describe("captureConflictError", () => {
   it("should be a usage error naming the options and suggesting how to recapture", () => {
     const error = captureConflictError([
-      { flag: "--viewport", given: "800x600", stored: "1280x720" },
-      { flag: "--full-page", given: "on", stored: "off" },
+      { flag: "--viewport", flagValue: "800x600", baselineValue: "1280x720" },
+      { flag: "--full-page", flagValue: "on", baselineValue: "off" },
     ]);
     expect(error).toMatchObject({ code: "CAPTURE_OPTION_CONFLICT", category: "usage" });
     expect(error.message).toBe(
@@ -209,6 +209,15 @@ describe("createBaselineStore", () => {
   });
 
   const files = () => fs.readdirSync(tempDir, { recursive: true, encoding: "utf8" }).sort();
+
+  it("should return the folder and the absolute path of each image it wrote", () => {
+    const store = createBaselineStore(undefined, tempDir);
+    const dir = path.join(store.root, "home");
+    expect(store.write("home", metadata, images)).toEqual({
+      dir,
+      images: { chromium: path.join(dir, "chromium.png"), firefox: path.join(dir, "firefox.png") },
+    });
+  });
 
   it("should default to .chromascope/baselines and ignore .chromascope in git", () => {
     const store = createBaselineStore(undefined, tempDir);

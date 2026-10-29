@@ -1,3 +1,4 @@
+import { ERROR_CODES, type ErrorCode, type RuntimeErrorCode, type UsageErrorCode } from "./error-codes";
 import { type ErrorResult, SCHEMA_VERSION } from "./result";
 
 /** Usage errors mean the command needs fixing. Runtime errors mean the page or the environment is at fault. */
@@ -14,11 +15,11 @@ export const EXIT_CODES = {
 
 /** An error with a stable code, a one-line hint naming the fix, and the category that picks the exit code. */
 export class ChromascopeError extends Error {
-  readonly code: string;
+  readonly code: ErrorCode;
   readonly hint: string;
   readonly category: ErrorCategory;
 
-  constructor(code: string, message: string, hint: string, category: ErrorCategory, options?: ErrorOptions) {
+  constructor(code: ErrorCode, message: string, hint: string, category: ErrorCategory, options?: ErrorOptions) {
     super(message, options);
     this.name = "ChromascopeError";
     this.code = code;
@@ -27,10 +28,10 @@ export class ChromascopeError extends Error {
   }
 }
 
-export const usageError = (code: string, message: string, hint: string, options?: ErrorOptions) =>
+export const usageError = (code: UsageErrorCode, message: string, hint: string, options?: ErrorOptions) =>
   new ChromascopeError(code, message, hint, "usage", options);
 
-export const runtimeError = (code: string, message: string, hint: string, options?: ErrorOptions) =>
+export const runtimeError = (code: RuntimeErrorCode, message: string, hint: string, options?: ErrorOptions) =>
   new ChromascopeError(code, message, hint, "runtime", options);
 
 export const exitCodeFor = (error: ChromascopeError) =>
@@ -48,7 +49,7 @@ const seconds = (ms: number) => `${ms / 1000}s`;
 const HELP_HINT = "run the command with --help to see its arguments and options";
 
 /** Codes for the errors of the CLI argument parser, by the start of their message. */
-const argumentErrorCodes: Array<[string, string]> = [
+const argumentErrorCodes: Array<[string, UsageErrorCode]> = [
   ["Unknown option", "INVALID_OPTION"],
   ["option `", "INVALID_OPTION"],
   ["missing required args", "MISSING_ARGUMENT"],
@@ -104,6 +105,27 @@ export const selectorError = (error: unknown, selector: string, timeout: number)
   }
   return error;
 };
+
+/** The widest a line of the help's error code list may grow. */
+const HELP_WIDTH = 110;
+
+/** Joins the codes after the label, wrapping before a line grows past the help's width. */
+const wrapCodes = (label: string, codes: readonly string[]) => {
+  const words = codes.map((code, index) => (index === codes.length - 1 ? code : `${code},`));
+  const lines = [words[0]];
+  for (const word of words.slice(1)) {
+    const joined = `${lines[lines.length - 1]} ${word}`;
+    if (label.length + joined.length > HELP_WIDTH) lines.push(word);
+    else lines[lines.length - 1] = joined;
+  }
+  return lines.map((line, index) => (index === 0 ? label : " ".repeat(label.length)) + line);
+};
+
+/** The help's list of error codes, by exit code. */
+export const formatErrorCodes = () => [
+  ...wrapCodes(`  Usage (exit ${EXIT_CODES.usage}):   `, ERROR_CODES.usage),
+  ...wrapCodes(`  Runtime (exit ${EXIT_CODES.runtime}): `, ERROR_CODES.runtime),
+];
 
 /** The lines printed on stderr for an error. */
 export const formatError = ({ code, message, hint }: ChromascopeError) => [

@@ -1,20 +1,11 @@
-import type {
-  CleanResult,
-  CompareResult,
-  DiffComparison,
-  DiffResult,
-  DoctorResult,
-  Size,
-  SnapshotResult,
-} from "./result";
+import type { BrowserName, Size } from "./capture-options";
+import type { CleanResult, CompareResult, DiffComparison, DiffResult, DoctorResult, SnapshotResult } from "./result";
 
-const displayNames: Record<string, string> = {
-  chromium: "🌐 Chromium",
-  webkit: "🍎 WebKit",
-  firefox: "🦊 Firefox",
-};
-const displayName = (browser: string) => displayNames[browser] ?? browser;
-const plainName = (browser: string) => displayName(browser).replace(/^\S+ /, "");
+const browserNames: Record<BrowserName, string> = { chromium: "Chromium", webkit: "WebKit", firefox: "Firefox" };
+const browserIcons: Record<BrowserName, string> = { chromium: "🌐", webkit: "🍎", firefox: "🦊" };
+const decoratedName = (browser: BrowserName) => `${browserIcons[browser]} ${browserNames[browser]}`;
+
+const percent = (percentage: number) => `${percentage.toFixed(2)}%`;
 
 /** Draws a box: the title, then each detail on its own branch. */
 const box = (title: string, details: string[]) => [
@@ -23,16 +14,16 @@ const box = (title: string, details: string[]) => [
 ];
 
 /** Lines for the base browser's screenshot. Empty when the screenshot wasn't saved. */
-export const formatBaseResult = (base: string, screenshotPath: string | null | undefined) =>
-  screenshotPath ? box(`${displayName(base)} (base)`, [`Screenshot stored at ${screenshotPath}`]) : [];
+export const formatBaseResult = (base: BrowserName, screenshotPath: string | null | undefined) =>
+  screenshotPath ? box(`${decoratedName(base)} (base)`, [`Screenshot stored at ${screenshotPath}`]) : [];
 
-export const formatResult = (base: string, comparison: DiffComparison, screenshotPath?: string | null) => {
+export const formatResult = (base: BrowserName, comparison: DiffComparison, screenshotPath?: string | null) => {
   const details = [
-    `${comparison.pixelChangePercentage.toFixed(2)}% pixel change compared to ${plainName(base)} (${comparison.pixelChange}px)`,
+    `${percent(comparison.pixelChangePercentage)} pixel change compared to ${browserNames[base]} (${comparison.pixelChange}px)`,
   ];
   if (screenshotPath) details.push(`Screenshot stored at ${screenshotPath}`);
   if (comparison.diffPath) details.push(`Visual diff stored at ${comparison.diffPath}`);
-  return box(displayName(comparison.browser), details);
+  return box(decoratedName(comparison.browser), details);
 };
 
 /** The decorated results for a terminal: a box per browser, with emoji. */
@@ -44,12 +35,7 @@ export const formatDiffDecorated = ({ base, screenshots, comparisons }: DiffResu
 /** One line per comparison: browser, percentage, pixel count and, when saved, the diff path. */
 export const formatDiffPlain = ({ comparisons }: DiffResult) =>
   comparisons.map((comparison) =>
-    [
-      comparison.browser,
-      `${comparison.pixelChangePercentage.toFixed(2)}%`,
-      `${comparison.pixelChange}px`,
-      comparison.diffPath,
-    ]
+    [comparison.browser, percent(comparison.pixelChangePercentage), `${comparison.pixelChange}px`, comparison.diffPath]
       .filter(Boolean)
       .join(" "),
   );
@@ -57,12 +43,12 @@ export const formatDiffPlain = ({ comparisons }: DiffResult) =>
 const size = ({ width, height }: Size) => `${width}x${height}`;
 
 /** One line per browser: the browser and the absolute path of its baseline image. */
-export const formatSnapshotPlain = ({ baselines }: SnapshotResult) =>
-  Object.entries(baselines).map(([browser, file]) => `${browser} ${file}`);
+export const formatSnapshotPlain = ({ options, baselines }: SnapshotResult) =>
+  options.browsers.map((browser) => `${browser} ${baselines[browser]}`);
 
-export const formatSnapshotDecorated = ({ name, baselines }: SnapshotResult) =>
-  Object.entries(baselines).flatMap(([browser, file]) =>
-    box(displayName(browser), [`Baseline ${JSON.stringify(name)} stored at ${file}`]),
+export const formatSnapshotDecorated = ({ name, options, baselines }: SnapshotResult) =>
+  options.browsers.flatMap((browser) =>
+    box(decoratedName(browser), [`Baseline ${JSON.stringify(name)} stored at ${baselines[browser]}`]),
   );
 
 /**
@@ -73,7 +59,7 @@ export const formatComparePlain = ({ comparisons }: CompareResult) =>
   comparisons.map((comparison) =>
     [
       comparison.browser,
-      `${comparison.pixelChangePercentage.toFixed(2)}%`,
+      percent(comparison.pixelChangePercentage),
       `${comparison.pixelChange}px`,
       `${size(comparison.before)}->${size(comparison.after)}`,
       comparison.sizeChanged ? "size-changed" : "same-size",
@@ -83,8 +69,8 @@ export const formatComparePlain = ({ comparisons }: CompareResult) =>
 
 export const formatCompareDecorated = ({ comparisons }: CompareResult) =>
   comparisons.flatMap((comparison) =>
-    box(displayName(comparison.browser), [
-      `${comparison.pixelChangePercentage.toFixed(2)}% pixel change compared to the baseline (${comparison.pixelChange}px)`,
+    box(decoratedName(comparison.browser), [
+      `${percent(comparison.pixelChangePercentage)} pixel change compared to the baseline (${comparison.pixelChange}px)`,
       `Size ${size(comparison.before)} before, ${size(comparison.after)} after (${comparison.sizeChanged ? "changed: the added area counts as changed" : "unchanged"})`,
       `Before stored at ${comparison.beforePath}`,
       `After stored at ${comparison.afterPath}`,

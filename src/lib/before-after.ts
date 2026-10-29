@@ -27,8 +27,8 @@ export type PlanComparisonInput<B extends StoredBaseline> = {
   url: string | null;
   /** Whether the name was given with `--name`, rather than derived. */
   nameGiven: boolean;
-  /** The image options that were given. Each must match the baseline's, unless `update` is set. */
-  given: Partial<ImageOptions>;
+  /** The image options passed as flags. Each must match the baseline's, unless `update` is set. */
+  imageFlags: Partial<ImageOptions>;
   /** The browsers that were given, or `null` for every browser of the baseline. */
   browsers: BrowserName[] | null;
   update: boolean;
@@ -42,30 +42,30 @@ export type ComparisonPlan<B extends StoredBaseline> = {
   url: string;
   capture: ImageOptions;
   browsers: BrowserName[];
-  /** The given capture options that differ from the baseline's. Only non-empty with `--update`. */
+  /** The image option flags that differ from the baseline's. Only non-empty with `--update`. */
   conflicts: CaptureConflict[];
 };
 
 /**
  * Decides what a before/after comparison captures: the URL, capture options and browsers, taken from the baseline
- * unless given. Fails when the baseline or one of its browsers is missing, or a given capture option conflicts.
+ * unless given. Fails when the baseline or one of its browsers is missing, or an image option flag conflicts.
  */
 export const planComparison = <B extends StoredBaseline>(input: PlanComparisonInput<B>): ComparisonPlan<B> => {
-  const { name, baseline, given, update } = input;
+  const { name, baseline, imageFlags, update } = input;
   const { baselineDir } = input;
 
   if (!baseline) {
     throw baselineNotFound(`no baseline named ${JSON.stringify(name)} in ${input.root}`, {
       url: input.url,
       name: input.nameGiven ? name : undefined,
-      capture: given,
+      capture: imageFlags,
       browsers: input.browsers ?? undefined,
       baselineDir,
     });
   }
   const { metadata } = baseline;
 
-  const conflicts = findCaptureConflicts(metadata.capture, given);
+  const conflicts = findCaptureConflicts(metadata.capture, imageFlags);
   if (conflicts.length > 0 && !update) throw captureConflictError(conflicts);
 
   const browsers = input.browsers ?? metadata.browsers;
@@ -83,7 +83,13 @@ export const planComparison = <B extends StoredBaseline>(input: PlanComparisonIn
     });
   }
 
-  return { baseline, url: input.url ?? metadata.url, capture: { ...metadata.capture, ...given }, browsers, conflicts };
+  return {
+    baseline,
+    url: input.url ?? metadata.url,
+    capture: { ...metadata.capture, ...imageFlags },
+    browsers,
+    conflicts,
+  };
 };
 
 /**
