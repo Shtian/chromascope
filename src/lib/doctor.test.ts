@@ -27,6 +27,8 @@ describe("isAtLeast", () => {
     ["v23.1.0", ">=22.12", true],
     ["22.11.9", ">=22.12", false],
     ["20.19.0", ">=22.12", false],
+    ["24.0.0", ">=24", true],
+    ["23.11.0", ">=24", false],
   ])("should compare %s against %s", (version, minimum, expected) => {
     expect(isAtLeast(version, minimum)).toBe(expected);
   });
@@ -34,20 +36,20 @@ describe("isAtLeast", () => {
 
 describe("checkNode", () => {
   it("should pass for a supported Node version", () => {
-    expect(checkNode("22.12.0", ">=22.12")).toEqual({
+    expect(checkNode("24.0.0", ">=24")).toEqual({
       name: "node",
       ok: true,
-      message: "node 22.12.0, needs >=22.12",
+      message: "node 24.0.0, needs >=24",
       fix: null,
     });
   });
 
   it("should fail with the version to install for an older Node", () => {
-    expect(checkNode("20.19.0", ">=22.12")).toEqual({
+    expect(checkNode("22.12.0", ">=24")).toEqual({
       name: "node",
       ok: false,
-      message: "node 20.19.0, needs >=22.12",
-      fix: "install Node 22.12 or later",
+      message: "node 22.12.0, needs >=24",
+      fix: "install Node 24 or later",
     });
   });
 

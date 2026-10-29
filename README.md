@@ -317,7 +317,7 @@ Or copy the `skills/chromascope` folder into your agent's skills folder, like `.
 
 ```
 $ chromascope doctor
-ok node: node 22.12.0, needs >=22.12
+ok node: node 24.0.0, needs >=24
 ok chromium: chromium launches
 ok webkit: webkit launches
 fail firefox: firefox is not installed (fix: run `chromascope install` to install the browsers)
