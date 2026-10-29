@@ -24,7 +24,8 @@ describe("createRunId", () => {
 
   it("should be unique for runs started in the same second", () => {
     const now = new Date(2026, 9, 28, 16, 3, 12);
-    const ids = Array.from({ length: 1000 }, () => createRunId(now));
+    // The suffix has 24 random bits, so 1000 IDs collide in ~3% of runs; 20 keeps it near one in 100,000.
+    const ids = Array.from({ length: 20 }, () => createRunId(now));
     expect(new Set(ids).size).toBe(ids.length);
   });
 });
