@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>chromascope agent demo</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        width: 960px;
+        height: 560px;
+        overflow: hidden;
+        background: #0d1117;
+        font-family: -apple-system, "SF Pro Text", "Helvetica Neue", sans-serif;
+      }
+      #stage {
+        position: relative;
+        width: 960px;
+        height: 560px;
+        background: radial-gradient(circle at 20% 0%, #1f2a44 0%, #0d1117 60%);
+      }
+      #caption {
+        position: absolute;
+        top: 18px;
+        left: 0;
+        right: 0;
+        text-align: center;
+        color: #e6edf3;
+        font-size: 21px;
+        font-weight: 600;
+        letter-spacing: 0.2px;
+      }
+      #caption em {
+        font-style: normal;
+        background: linear-gradient(90deg, #ff6b6b, #ffd93d, #6bcbff, #c56bff);
+        -webkit-background-clip: text;
+        color: transparent;
+      }
+      .window {
+        position: absolute;
+        top: 66px;
+        left: 20px;
+        width: 920px;
+        height: 474px;
+        border-radius: 10px;
+        background: #161b22;
+        border: 1px solid #30363d;
+        box-shadow: 0 16px 40px #0008;
+        overflow: hidden;
+      }
+      .bar {
+        height: 30px;
+        background: #21262d;
+        display: flex;
+        align-items: center;
+        padding: 0 12px;
+        gap: 8px;
+        color: #8b949e;
+        font-size: 12px;
+      }
+      .dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+      }
+      .bar .title {
+        flex: 1;
+        text-align: center;
+        margin-right: 52px;
+      }
+      #term {
+        padding: 12px 16px;
+        font-family: Menlo, "SF Mono", monospace;
+        font-size: 13.5px;
+        line-height: 20px;
+        color: #c9d1d9;
+        white-space: pre;
+      }
+      .p {
+        color: #7ee787;
+      }
+      .u {
+        color: #79c0ff;
+      }
+      .g {
+        color: #3fb950;
+      }
+      .c {
+        color: #58a6ff;
+      }
+      .r {
+        color: #ff7b72;
+      }
+      .dim {
+        color: #8b949e;
+      }
+      .cursor {
+        background: #c9d1d9;
+        color: #161b22;
+      }
+      #viewer {
+        padding: 14px 10px;
+      }
+      .tabs {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+      .tab {
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 13px;
+        color: #8b949e;
+        border: 1px solid #30363d;
+      }
+      .tab.on {
+        color: #fff;
+        background: #1f6feb;
+        border-color: #1f6feb;
+      }
+      .tab.on.diff {
+        background: #da3633;
+        border-color: #da3633;
+      }
+      .frame {
+        position: relative;
+        width: 898px;
+        height: 316px;
+        border-radius: 6px;
+        overflow: hidden;
+        border: 1px solid #30363d;
+      }
+      .frame img {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+      .badge {
+        position: absolute;
+        right: 12px;
+        bottom: 12px;
+        background: #da3633;
+        color: #fff;
+        font-size: 14px;
+        font-weight: 600;
+        padding: 6px 12px;
+        border-radius: 6px;
+      }
+      .note {
+        margin-top: 12px;
+        color: #8b949e;
+        font-size: 13px;
+      }
+      .user {
+        color: #e6edf3;
+        background: #21262d;
+      }
+      .t {
+        color: #e6edf3;
+      }
+      .tool {
+        color: #e6edf3;
+        font-weight: 700;
+      }
+      .badge.ok {
+        background: #238636;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="stage">
+      <div id="caption"></div>
+      <div class="window" id="win">
+        <div class="bar">
+          <span class="dot" style="background: #ff5f57"></span><span class="dot" style="background: #febc2e"></span
+          ><span class="dot" style="background: #28c840"></span><span class="title" id="title"></span>
+        </div>
+        <div id="body"></div>
+      </div>
+    </div>
+    <script>
+      // The recorder sets window.DEMO, then calls render(t) for every frame, with t in milliseconds.
+      const spinner = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏";
+      const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+      const typeSpeed = 25;
+
+      const ask =
+        "Highlight the Pro card with a blue ring. Use chromascope to check\n  that nothing else on the page changes.";
+      const snapshotCmd = "chromascope snapshot localhost:3000 --viewport 1280x450";
+      const compareCmd = "chromascope compare localhost:3000 --out /tmp/pricing";
+      const diffPath = "/tmp/pricing/diff-chromium.png";
+
+      // Scene boundaries in milliseconds.
+      const S1 = { start: 0, ask: 300, end: 11500 };
+      const S2 = { start: 11500, after: 13000, diff: 14500, end: 18500 };
+      const S3 = { start: 18500, end: 26000 };
+      const S4 = { start: 26000, after: 27000, diff: 28500, end: 32500 };
+      const S5 = { start: 32500, end: 38000 };
+      window.DURATION = S5.end;
+
+      const typed = (text, t, from) => text.slice(0, Math.max(0, Math.floor((t - from) / typeSpeed)));
+      const cursor = (t) => (Math.floor(t / 530) % 2 === 0 ? '<span class="cursor"> </span>' : " ");
+      const dot = '<span class="g">⏺</span>';
+      const say = (text) => `${dot} <span class="t">${esc(text).replace(/\n/g, "\n  ")}</span>`;
+      const tool = (name, arg) => `${dot} <span class="tool">${name}</span>(${esc(arg)})`;
+      const result = (lines) => lines.map((l, i) => `  ${i === 0 ? "⎿ " : "  "} ${l}`);
+
+      // A step appears at `at`. A step with `run` shows a spinner until `at + run`, then its output.
+      function steps(t, list) {
+        const lines = [];
+        for (const step of list) {
+          if (t < step.at) break;
+          lines.push(...step.head, ...(step.run && t < step.at + step.run
+            ? [`  ⎿  <span class="c">${spinner[Math.floor(t / 80) % 10]}</span> <span class="dim">Running…</span>`]
+            : (step.out ?? [])), "");
+        }
+        return lines;
+      }
+
+      function scene1(t) {
+        const { snapshot, attempts } = window.DEMO;
+        const lines = [`<span class="user">&gt; ${esc(typed(ask, t, S1.ask))}</span>${t < 2600 ? cursor(t) : ""}`, ""];
+        lines.push(
+          ...steps(t, [
+            { at: 3200, head: [say("I'll capture a baseline before touching the CSS.")] },
+            { at: 4000, head: [tool("Bash", snapshotCmd)], run: 1300, out: result([esc(snapshot)]) },
+            { at: 6000, head: [tool("Update", "src/pricing.css")], out: result([`<span class="add">+ ${esc(attempts.wrong.css)}</span>`]) },
+            { at: 7300, head: [tool("Bash", compareCmd)], run: 1500, out: result([esc(attempts.wrong.output)]) },
+            { at: 9800, head: [tool("Read", diffPath)] },
+          ]),
+        );
+        return { caption: "Your agent <em>checks its own UI change</em>", lines };
+      }
+
+      function viewer(t, s, attempt, note, ok) {
+        const { before } = window.DEMO;
+        const active = t < s.after ? "before" : t < s.diff ? "after" : "diff";
+        const tab = (key, label) => `<span class="tab ${active === key ? "on" : ""} ${key}">${label}</span>`;
+        // Crossfade 250ms into each image.
+        const fade = (from) => Math.min(1, Math.max(0, (t - from) / 250));
+        const img = (src, opacity) => `<img src="${src}" style="opacity:${opacity}">`;
+        const pct = attempt.output.split(" ")[1];
+        return `<div id="viewer">
+            <div class="tabs">${tab("before", "before-chromium.png")}${tab("after", "after-chromium.png")}${tab("diff", "diff-chromium.png")}</div>
+            <div class="frame">
+              ${img(before, 1)}
+              ${img(attempt.after, fade(s.after))}
+              ${img(attempt.diff, fade(s.diff))}
+              ${active === "diff" ? `<div class="badge ${ok ? "ok" : ""}">${pct} changed</div>` : ""}
+            </div>
+            <div class="note">${active === "diff" ? note : "The page before the change, and after it."}</div>
+          </div>`;
+      }
+
+      function scene2(t) {
+        return {
+          caption: "It <em>looks at the diff</em>, not just the number",
+          title: "/tmp/pricing",
+          html: viewer(t, S2, window.DEMO.attempts.wrong, "Changed pixels in red: every card got the ring, not only Pro."),
+        };
+      }
+
+      function scene3(t) {
+        const { attempts } = window.DEMO;
+        const lines = steps(t, [
+          {
+            at: S3.start + 300,
+            head: [say("The diff shows all three cards changed, not only Pro: the rule\nmatches every .card. I'll scope it to the Pro card.")],
+          },
+          {
+            at: S3.start + 1800,
+            head: [tool("Update", "src/pricing.css")],
+            out: result([`<span class="del">- ${esc(attempts.wrong.css)}</span>`, `<span class="add">+ ${esc(attempts.fixed.css)}</span>`]),
+          },
+          { at: S3.start + 3200, head: [tool("Bash", `${compareCmd} --clean`)], run: 1500, out: result([esc(attempts.fixed.output)]) },
+          { at: S3.start + 5600, head: [tool("Read", diffPath)] },
+        ]);
+        return { caption: "It fixes what it didn't mean to change", lines };
+      }
+
+      function scene4(t) {
+        return {
+          caption: "and checks again",
+          title: "/tmp/pricing",
+          html: viewer(t, S4, window.DEMO.attempts.fixed, "Only the Pro card changed. Starter, Team and the header match the baseline.", true),
+        };
+      }
+
+      function scene5(t) {
+        const lines = steps(t, [
+          {
+            at: S5.start + 300,
+            head: [
+              say(
+                "Done. The Pro card has a blue ring, and the diff shows nothing else\nchanged: Starter, Team and the header match the baseline. --clean\ndeleted the baseline.",
+              ),
+            ],
+          },
+        ]);
+        return { caption: "Done means <em>every changed pixel was intended</em>", lines };
+      }
+
+      window.render = (t) => {
+        const scene =
+          t < S2.start ? scene1(t) : t < S3.start ? scene2(t) : t < S4.start ? scene3(t) : t < S5.start ? scene4(t) : scene5(t);
+        document.getElementById("caption").innerHTML = scene.caption;
+        document.getElementById("title").textContent = scene.title ?? "coding agent — ~/app";
+        document.getElementById("body").innerHTML = scene.html ?? `<div id="term">${scene.lines.join("\n")}</div>`;
+        // Fade the window at scene changes and at the loop point.
+        const edges = [S2.start, S3.start, S4.start, S5.start, window.DURATION];
+        const distance = Math.min(t, ...edges.map((e) => Math.abs(e - t)));
+        document.getElementById("win").style.opacity = Math.min(1, distance / 200);
+      };
+    </script>
+  </body>
+</html>
