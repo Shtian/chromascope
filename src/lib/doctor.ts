@@ -26,7 +26,7 @@ export const isAtLeast = (version: string, minimum: string) => {
   return true;
 };
 
-/** Checks the running Node version against `engines.node` in package.json, like `>=22.12`. */
+/** Checks the running Node version against `engines.node` in package.json, like `>=24`. */
 export const checkNode = (version = process.versions.node, range = engines.node): DoctorCheck => {
   const message = `node ${version}, needs ${range}`;
   return isAtLeast(version, range)

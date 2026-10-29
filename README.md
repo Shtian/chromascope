@@ -8,8 +8,6 @@ Chromascope captures web pages in real browsers and reports how much they differ
 
 ![chromascope diffing a page across Chromium, WebKit and Firefox, showing the saved visual diff, then failing a CI step with --fail-above](docs/demo.gif)
 
-The demo is recorded with real results from `docs/demo/site`. Rerun it with `pnpm build && node docs/demo/record.mjs` (needs ffmpeg).
-
 ## Usage
 
 Can be installed globally with pnpm|npm|yarn:
@@ -317,7 +315,7 @@ Or copy the `skills/chromascope` folder into your agent's skills folder, like `.
 
 ```
 $ chromascope doctor
-ok node: node 22.12.0, needs >=22.12
+ok node: node 24.0.0, needs >=24
 ok chromium: chromium launches
 ok webkit: webkit launches
 fail firefox: firefox is not installed (fix: run `chromascope install` to install the browsers)

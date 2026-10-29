@@ -294,7 +294,7 @@ const doctorResult: DoctorResult = {
   command: "doctor",
   ok: false,
   checks: [
-    { name: "node", ok: true, message: "node 22.12.0, needs >=22.12", fix: null },
+    { name: "node", ok: true, message: "node 24.0.0, needs >=24", fix: null },
     {
       name: "firefox",
       ok: false,
@@ -307,7 +307,7 @@ const doctorResult: DoctorResult = {
 describe("formatDoctorPlain", () => {
   it("should print one line per check, with the fix for a failed check", () => {
     expect(formatDoctorPlain(doctorResult)).toEqual([
-      "ok node: node 22.12.0, needs >=22.12",
+      "ok node: node 24.0.0, needs >=24",
       "fail firefox: firefox is not installed (fix: run `chromascope install` to install the browsers)",
     ]);
   });
@@ -316,7 +316,7 @@ describe("formatDoctorPlain", () => {
 describe("formatDoctorDecorated", () => {
   it("should mark each check, with the fix below a failed check", () => {
     expect(formatDoctorDecorated(doctorResult)).toEqual([
-      "✔ node 22.12.0, needs >=22.12",
+      "✔ node 24.0.0, needs >=24",
       "✖ firefox is not installed\n  👉 run `chromascope install` to install the browsers",
     ]);
   });
