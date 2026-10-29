@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>chromascope demo</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        width: 960px;
+        height: 560px;
+        overflow: hidden;
+        background: #0d1117;
+        font-family: -apple-system, "SF Pro Text", "Helvetica Neue", sans-serif;
+      }
+      #stage {
+        position: relative;
+        width: 960px;
+        height: 560px;
+        background: radial-gradient(circle at 20% 0%, #1f2a44 0%, #0d1117 60%);
+      }
+      #caption {
+        position: absolute;
+        top: 18px;
+        left: 0;
+        right: 0;
+        text-align: center;
+        color: #e6edf3;
+        font-size: 21px;
+        font-weight: 600;
+        letter-spacing: 0.2px;
+      }
+      #caption em {
+        font-style: normal;
+        background: linear-gradient(90deg, #ff6b6b, #ffd93d, #6bcbff, #c56bff);
+        -webkit-background-clip: text;
+        color: transparent;
+      }
+      .window {
+        position: absolute;
+        top: 66px;
+        left: 20px;
+        width: 920px;
+        height: 474px;
+        border-radius: 10px;
+        background: #161b22;
+        border: 1px solid #30363d;
+        box-shadow: 0 16px 40px #0008;
+        overflow: hidden;
+      }
+      .bar {
+        height: 30px;
+        background: #21262d;
+        display: flex;
+        align-items: center;
+        padding: 0 12px;
+        gap: 8px;
+        color: #8b949e;
+        font-size: 12px;
+      }
+      .dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+      }
+      .bar .title {
+        flex: 1;
+        text-align: center;
+        margin-right: 52px;
+      }
+      #term {
+        padding: 12px 16px;
+        font-family: Menlo, "SF Mono", monospace;
+        font-size: 13.5px;
+        line-height: 20px;
+        color: #c9d1d9;
+        white-space: pre;
+      }
+      .p {
+        color: #7ee787;
+      }
+      .u {
+        color: #79c0ff;
+      }
+      .g {
+        color: #3fb950;
+      }
+      .c {
+        color: #58a6ff;
+      }
+      .r {
+        color: #ff7b72;
+      }
+      .dim {
+        color: #8b949e;
+      }
+      .cursor {
+        background: #c9d1d9;
+        color: #161b22;
+      }
+      #viewer {
+        padding: 14px 10px;
+      }
+      .tabs {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+      .tab {
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 13px;
+        color: #8b949e;
+        border: 1px solid #30363d;
+      }
+      .tab.on {
+        color: #fff;
+        background: #1f6feb;
+        border-color: #1f6feb;
+      }
+      .tab.on.diff {
+        background: #da3633;
+        border-color: #da3633;
+      }
+      .frame {
+        position: relative;
+        width: 898px;
+        height: 316px;
+        border-radius: 6px;
+        overflow: hidden;
+        border: 1px solid #30363d;
+      }
+      .frame img {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+      .badge {
+        position: absolute;
+        right: 12px;
+        bottom: 12px;
+        background: #da3633;
+        color: #fff;
+        font-size: 14px;
+        font-weight: 600;
+        padding: 6px 12px;
+        border-radius: 6px;
+      }
+      .note {
+        margin-top: 12px;
+        color: #8b949e;
+        font-size: 13px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="stage">
+      <div id="caption"></div>
+      <div class="window" id="win">
+        <div class="bar">
+          <span class="dot" style="background: #ff5f57"></span><span class="dot" style="background: #febc2e"></span
+          ><span class="dot" style="background: #28c840"></span><span class="title" id="title"></span>
+        </div>
+        <div id="body"></div>
+      </div>
+    </div>
+    <script>
+      // The recorder sets window.DEMO, then calls render(t) for every frame, with t in milliseconds.
+      const spinner = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏";
+      const names = { chromium: "Chromium", webkit: "WebKit", firefox: "Firefox" };
+      const icons = { chromium: "🌐", webkit: "🍎", firefox: "🦊" };
+      const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+
+      const cmd1 = "chromascope diff localhost:3000 --save-diff";
+      const cmd2 = "chromascope diff localhost:3000 --fail-above 1 --quiet";
+      const cmd3 = "echo $?";
+      const typeSpeed = 40;
+
+      // Scene boundaries in milliseconds.
+      const A = { start: 0, type: 400, enter: 2400, done: { chromium: 3300, webkit: 3800, firefox: 4400 }, results: 4700 };
+      const B = { start: 9000, firefox: 10600, diff: 12200, end: 16000 };
+      const C = { start: 16000, type: 16400, out: 19000, type3: 19700, out3: 20300 };
+      window.DURATION = 24000;
+
+      const typed = (text, t, from) => text.slice(0, Math.max(0, Math.floor((t - from) / typeSpeed)));
+      const cursor = (t) => (Math.floor(t / 530) % 2 === 0 ? '<span class="cursor"> </span>' : " ");
+      const prompt = (text, cur) => `<span class="p">~/app</span> <span class="c">❯</span> ${esc(text)}${cur ?? ""}`;
+      const pct = (n) => `${n.toFixed(2)}%`;
+
+      const box = (title, details) => [
+        `┌─ ${title}`,
+        ...details.map((d, i) => `${i === details.length - 1 ? "└─" : "├─"} 👉 ${esc(d)}`),
+      ];
+
+      function resultLines() {
+        const { comparisons, runId } = window.DEMO;
+        const dir = `~/app/chromascope-runs/${runId}`;
+        return [
+          ...box(`${icons.chromium} Chromium (base)`, [`Screenshot stored at ${dir}/chromium.png`]),
+          ...comparisons.flatMap((c) =>
+            box(`${icons[c.browser]} ${names[c.browser]}`, [
+              `${pct(c.pixelChangePercentage)} pixel change compared to Chromium (${c.pixelChange}px)`,
+              `Screenshot stored at ${dir}/${c.browser}.png`,
+              `Visual diff stored at ${dir}/diff-chromium-${c.browser}.png`,
+            ]),
+          ),
+        ];
+      }
+
+      function sceneA(t) {
+        const lines = [];
+        lines.push(prompt(typed(cmd1, t, A.type), t < A.enter ? cursor(t) : ""));
+        if (t >= A.enter) {
+          for (const b of ["chromium", "webkit", "firefox"]) {
+            if (t >= A.done[b]) lines.push(`<span class="g">✔</span> Captured ${b} screenshot 📸`);
+            else lines.push(`<span class="c">${spinner[Math.floor(t / 80) % 10]}</span> Capturing ${b} screenshot 📷`);
+          }
+        }
+        if (t >= A.results) {
+          const all = resultLines();
+          lines.push(...all.slice(0, Math.floor((t - A.results) / 50) + 1));
+          if (t >= A.results + all.length * 50 + 200) lines.push(prompt("", cursor(t)));
+        }
+        return { caption: "Diff a page across <em>Chromium, WebKit and Firefox</em>", lines };
+      }
+
+      function sceneB(t) {
+        const { shots, comparisons } = window.DEMO;
+        const firefox = comparisons.find((c) => c.browser === "firefox");
+        const active = t < B.firefox ? "chromium" : t < B.diff ? "firefox" : "diff";
+        const tab = (key, label) => `<span class="tab ${active === key ? "on" : ""} ${key}">${label}</span>`;
+        // Crossfade 250ms into each image.
+        const fade = (from) => Math.min(1, Math.max(0, (t - from) / 250));
+        const img = (src, opacity) => `<img src="${src}" style="opacity:${opacity}">`;
+        return {
+          caption: "See <em>exactly what changed</em> in the saved diff",
+          title: `chromascope-runs/${window.DEMO.runId}`,
+          html: `<div id="viewer">
+            <div class="tabs">${tab("chromium", "🌐 chromium.png (base)")}${tab("firefox", "🦊 firefox.png")}${tab("diff", "diff-chromium-firefox.png")}</div>
+            <div class="frame">
+              ${img(shots.chromium, 1)}
+              ${img(shots.firefox, fade(B.firefox))}
+              ${img(shots.diff, fade(B.diff))}
+              ${active === "diff" ? `<div class="badge">${pct(firefox.pixelChangePercentage)} · ${firefox.pixelChange}px changed</div>` : ""}
+            </div>
+            <div class="note">${active === "diff" ? "Changed pixels in red: font rendering, form controls and spacing differ in Firefox." : "Same page, same viewport, different engines."}</div>
+          </div>`,
+        };
+      }
+
+      function sceneC(t) {
+        const { comparisons } = window.DEMO;
+        const lines = [prompt(typed(cmd2, t, C.type), t < C.out ? cursor(t) : "")];
+        if (t >= C.out) {
+          lines.push(...comparisons.map((c) => `${c.browser} ${pct(c.pixelChangePercentage)} ${c.pixelChange}px`));
+          lines.push(prompt(typed(cmd3, t, C.type3), t < C.out3 ? cursor(t) : ""));
+        }
+        if (t >= C.out3) {
+          lines.push('<span class="r">1</span>  <span class="dim"># a browser changed more than 1%: the CI step fails</span>');
+          lines.push(prompt("", cursor(t)));
+        }
+        return { caption: "Gate CI with <em>--fail-above</em>", lines };
+      }
+
+      window.render = (t) => {
+        const scene = t < B.start ? sceneA(t) : t < C.start ? sceneB(t) : sceneC(t);
+        document.getElementById("caption").innerHTML = scene.caption;
+        document.getElementById("title").textContent = scene.title ?? "zsh — ~/app";
+        document.getElementById("body").innerHTML = scene.html ?? `<div id="term">${scene.lines.join("\n")}</div>`;
+        // Fade the window at scene changes and at the loop point.
+        const edges = [B.start, C.start, window.DURATION];
+        const distance = Math.min(t, ...edges.map((e) => Math.abs(e - t)));
+        document.getElementById("win").style.opacity = Math.min(1, distance / 200);
+      };
+    </script>
+  </body>
+</html>
