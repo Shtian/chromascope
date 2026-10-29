@@ -1,6 +1,6 @@
 {
   "name": "chromascope",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "author": "Stian Haga",
   "license": "ISC",
   "description": "Let your coding agent see what its UI change did. Before/after, cross-browser and URL visual diffs in real browsers, from the CLI.",
