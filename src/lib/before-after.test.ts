@@ -3,7 +3,7 @@ import { PNG } from "pngjs";
 import { describe, expect, it } from "vitest";
 import type { BaselineMetadata } from "./baselines";
 import {
-  compareWithBaseline,
+  compareBeforeAfter,
   type PlanComparisonInput,
   planComparison,
   shouldClean,
@@ -198,12 +198,12 @@ const png = (width: number, height: number, color: [number, number, number]) => 
   return PNG.sync.write(image);
 };
 
-describe("compareWithBaseline", () => {
+describe("compareBeforeAfter", () => {
   const runFolder = "/runs/1";
 
   it("should report no change for identical images, and name the files to write", () => {
     const image = png(4, 2, [255, 0, 0]);
-    const { comparison, files } = compareWithBaseline("firefox", image, image, runFolder, 0.2);
+    const { comparison, files } = compareBeforeAfter("firefox", image, image, runFolder, 0.2);
     expect(comparison).toEqual({
       browser: "firefox",
       pixelChange: 0,
@@ -222,7 +222,7 @@ describe("compareWithBaseline", () => {
   });
 
   it("should count changed pixels", () => {
-    const { comparison } = compareWithBaseline(
+    const { comparison } = compareBeforeAfter(
       "chromium",
       png(2, 2, [255, 0, 0]),
       png(2, 2, [0, 0, 255]),
@@ -233,7 +233,7 @@ describe("compareWithBaseline", () => {
   });
 
   it("should flag a size change and count the added area as changed", () => {
-    const { comparison, files } = compareWithBaseline(
+    const { comparison, files } = compareBeforeAfter(
       "chromium",
       png(2, 2, [255, 0, 0]),
       png(2, 4, [255, 0, 0]),

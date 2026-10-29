@@ -5,10 +5,11 @@ description: Capture a web page in real browsers and measure visual change with 
 
 # Chromascope
 
-Chromascope captures a page in real browsers and reports how much it changed, as a percentage and as a diff image you can look at. Two modes:
+Chromascope captures a page in real browsers and reports how much it changed, as a percentage and as a diff image you can look at. Three modes:
 
 - **Before/after comparison** (`snapshot`, then `compare`): the page now against a baseline captured earlier, in the same browser. Use it while making a UI change.
 - **Cross-browser diff** (`diff`): one page in several browsers at once, each against the base browser (Chromium by default).
+- **URL comparison** (`versus`, alias `vs`): two URLs, like production and a local build, each browser's capture of the second against its capture of the first. No baseline.
 
 Run it as `chromascope` if installed, else `npx chromascope`. Every command takes `--help`, which lists all flags, defaults, exit codes and error codes. When a first run fails on setup (browsers, Node, output folder), `chromascope doctor` names each broken check and its fix.
 
@@ -46,11 +47,19 @@ Each entry in `comparisons` is one browser against the base (`--base`, default `
 
 `diff` writes no images unless you pass `--out <dir>` (exact folder, overwritten) or `--save-diff` (new run folder). Always pass `--out` when you want to look at the images.
 
+## Compare two URLs
+
+```bash
+chromascope versus https://example.com/pricing localhost:3000/pricing --element .card --json --out /tmp/chromascope-vs
+```
+
+The first URL is "before", the second "after". Both get the same capture options, and one `--cookie` list is set for each URL. Each browser is compared only with itself. The images and JSON match `compare`, with `beforeUrl` and `afterUrl` instead of `url` and no baseline fields. Use it when the "before" is already served somewhere, so there is nothing to `snapshot`.
+
 ## Read the JSON
 
 `--json` prints exactly one document on stdout; parse stdout only. Branch on its shape:
 
-- **Success**: `comparisons[]`, one entry per browser, with `browser`, `pixelChangePercentage`, `pixelChange` and the absolute `diffPath`. `compare` adds `beforePath`, `afterPath`, the `before`/`after` sizes and `sizeChanged`. When `sizeChanged` is `true`, the added area counts as changed, so a high percentage may just mean the element grew.
+- **Success**: `comparisons[]`, one entry per browser, with `browser`, `pixelChangePercentage`, `pixelChange` and the absolute `diffPath`. `compare` and `versus` add `beforePath`, `afterPath`, the `before`/`after` sizes and `sizeChanged`. When `sizeChanged` is `true`, the added area counts as changed, so a high percentage may just mean the element grew.
 - **Failure**: `{ "schemaVersion": 1, "error": { "code", "message", "hint" } }`. Follow the `hint`; it names the fix.
 
 In a diff image, red pixels changed, yellow ones differ only by anti-aliasing, and the faded grey rest is unchanged.

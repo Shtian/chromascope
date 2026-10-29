@@ -12,6 +12,7 @@ export default defineConfig({
         "src/commands/compare.ts",
         "src/commands/diff.ts",
         "src/commands/snapshot.ts",
+        "src/commands/versus.ts",
         "src/lib/capture.ts",
         "src/lib/install.ts",
       ],

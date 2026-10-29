@@ -25,7 +25,7 @@ A comparison of a page captured now against its baseline, in the same browser.
 _Avoid_: regression test, visual test
 
 **URL comparison**:
-A comparison of two URLs captured with the same capture options, each browser's capture of the first URL measured against its capture of the second. No baseline involved.
+A comparison of two URLs captured with the same capture options, each browser's capture of the second URL measured against its capture of the first. No baseline involved.
 _Avoid_: live compare, against-compare
 
 ## Baselines

@@ -123,10 +123,10 @@ export const shouldClean = ({
 }) => clean && (update || !aboveFailAbove);
 
 /**
- * Compares a browser's capture against its baseline. Returns the comparison and the before, after and diff images
- * to write to the run folder.
+ * Compares a browser's after capture against its before capture: the baseline in a before/after comparison, or the
+ * first URL in a URL comparison. Returns the comparison and the before, after and diff images to write to the run folder.
  */
-export const compareWithBaseline = (
+export const compareBeforeAfter = (
   browser: BrowserName,
   before: Buffer,
   after: Buffer,

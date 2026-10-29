@@ -47,7 +47,7 @@ describe("help and version", () => {
     expect(bare.stdout).toBe(help.stdout);
   });
 
-  it.each(["snapshot", "compare", "clean", "doctor"])("should print the help for %s", async (command) => {
+  it.each(["snapshot", "compare", "versus", "clean", "doctor"])("should print the help for %s", async (command) => {
     const { code, stdout } = await chromascope(command, "--help");
     expect(code).toBe(0);
     expect(withoutVersion(stdout)).toMatchSnapshot();

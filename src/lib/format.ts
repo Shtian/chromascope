@@ -1,5 +1,14 @@
 import type { BrowserName, Size } from "./capture-options";
-import type { CleanResult, CompareResult, DiffComparison, DiffResult, DoctorResult, SnapshotResult } from "./result";
+import type {
+  CleanResult,
+  CompareComparison,
+  CompareResult,
+  DiffComparison,
+  DiffResult,
+  DoctorResult,
+  SnapshotResult,
+  VersusResult,
+} from "./result";
 
 const browserNames: Record<BrowserName, string> = { chromium: "Chromium", webkit: "WebKit", firefox: "Firefox" };
 const browserIcons: Record<BrowserName, string> = { chromium: "🌐", webkit: "🍎", firefox: "🦊" };
@@ -55,7 +64,7 @@ export const formatSnapshotDecorated = ({ name, options, baselines }: SnapshotRe
  * One line per browser: browser, percentage, pixel count, before and after size,
  * `same-size` or `size-changed`, and the diff path.
  */
-export const formatComparePlain = ({ comparisons }: CompareResult) =>
+export const formatComparePlain = ({ comparisons }: { comparisons: CompareComparison[] }) =>
   comparisons.map((comparison) =>
     [
       comparison.browser,
@@ -67,16 +76,26 @@ export const formatComparePlain = ({ comparisons }: CompareResult) =>
     ].join(" "),
   );
 
-export const formatCompareDecorated = ({ comparisons }: CompareResult) =>
+/** A box per browser with the change compared to `beforeLabel`, the sizes, and the before, after and diff images. */
+const formatBeforeAfterDecorated = (comparisons: CompareComparison[], beforeLabel: string) =>
   comparisons.flatMap((comparison) =>
     box(decoratedName(comparison.browser), [
-      `${percent(comparison.pixelChangePercentage)} pixel change compared to the baseline (${comparison.pixelChange}px)`,
+      `${percent(comparison.pixelChangePercentage)} pixel change compared to ${beforeLabel} (${comparison.pixelChange}px)`,
       `Size ${size(comparison.before)} before, ${size(comparison.after)} after (${comparison.sizeChanged ? "changed: the added area counts as changed" : "unchanged"})`,
       `Before stored at ${comparison.beforePath}`,
       `After stored at ${comparison.afterPath}`,
       `Visual diff stored at ${comparison.diffPath}`,
     ]),
   );
+
+export const formatCompareDecorated = ({ comparisons }: CompareResult) =>
+  formatBeforeAfterDecorated(comparisons, "the baseline");
+
+/** The same line per browser as `compare`. */
+export const formatVersusPlain = formatComparePlain;
+
+export const formatVersusDecorated = ({ comparisons, beforeUrl }: VersusResult) =>
+  formatBeforeAfterDecorated(comparisons, beforeUrl);
 
 /** One line per check: `ok` or `fail`, the check name and message, and the fix for a failed check. */
 export const formatDoctorPlain = ({ checks }: DoctorResult) =>
