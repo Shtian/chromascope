@@ -1,6 +1,6 @@
 import pixelmatch from "pixelmatch";
 import { PNG, type PNGWithMetadata } from "pngjs";
-import type { Size } from "./capture-options";
+import type { Size } from "./image-options";
 import output from "./output";
 
 export type ImageWithMetadata = Pick<PNGWithMetadata, "data" | "width" | "height">;

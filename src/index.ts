@@ -7,14 +7,7 @@ import { diff } from "./commands/diff";
 import { snapshot } from "./commands/snapshot";
 import { versus } from "./commands/versus";
 import { createBaselineStore, DEFAULT_BASELINE_DIR, deriveBaselineName, parseBaselineName } from "./lib/baselines";
-import {
-  BROWSERS,
-  type CaptureFlags,
-  parseBase,
-  parseBrowsers,
-  parseCaptureOptions,
-  parseImageOptions,
-} from "./lib/capture-options";
+import { BROWSERS, type CaptureFlags, parseBase, parseBrowsers, parseCaptureOptions } from "./lib/capture-options";
 import { runDoctor } from "./lib/doctor";
 import {
   EXIT_CODES,
@@ -40,6 +33,7 @@ import {
   formatVersusDecorated,
   formatVersusPlain,
 } from "./lib/format";
+import { type ImageOptions, imageOptionHelp, parseImageOptions } from "./lib/image-options";
 import { installBrowsers } from "./lib/install";
 import output from "./lib/output";
 import { type CleanResult, SCHEMA_VERSION } from "./lib/result";
@@ -54,21 +48,17 @@ const cli = cac("chromascope");
  * `compare` takes the image options from the baseline, so they have no defaults of their own there.
  */
 const withCaptureOptions = (command: Command, { browsers, fromBaseline = false }: CaptureDefaults) => {
-  const byDefault = (value?: string) =>
-    fromBaseline ? " (default: the baseline's)" : value ? ` (default: ${value})` : "";
+  const image = (key: keyof ImageOptions) => imageOptionHelp(key, { fromBaseline });
   return command
     .option(`${FLAGS.browsers} <list>`, `Comma separated browsers to capture (default: ${browsers})`)
-    .option(`-e, ${FLAGS.element} <selector>`, `Capture only the element with the given selector${byDefault()}`)
-    .option(`-f, ${FLAGS.fullPage}`, `Take a full page screenshot${byDefault()}`)
-    .option(`${FLAGS.viewport} <size>`, `Viewport size as <width>x<height>${byDefault("1280x720")}`)
-    .option(`${FLAGS.deviceScaleFactor} <n>`, `Device scale factor, like 2 for retina screenshots${byDefault("1")}`)
+    .option(...image("element"))
+    .option(...image("fullPage"))
+    .option(...image("viewport"))
+    .option(...image("deviceScaleFactor"))
     .option(`${FLAGS.timeout} <ms>`, "Milliseconds each navigation, wait and capture may take (default: 30000)")
-    .option(`${FLAGS.waitFor} <selector>`, `Wait for the selector to be visible before capturing${byDefault()}`)
-    .option(
-      `${FLAGS.waitUntil} <event>`,
-      `Page load event to wait for: load, domcontentloaded or networkidle${byDefault("load")}`,
-    )
-    .option(`${FLAGS.mask} <selector>`, `Hide the elements matching the selector. Repeat it to mask more${byDefault()}`)
+    .option(...image("waitFor"))
+    .option(...image("waitUntil"))
+    .option(...image("mask"))
     .option(`-c, ${FLAGS.cookie} <cookie>`, "Add one or more cookies to the context. Format: key=value;key2=value2");
 };
 

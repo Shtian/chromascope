@@ -1,9 +1,18 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { type BrowserName, DEFAULT_IMAGE_OPTIONS, type ImageOptions } from "./capture-options";
+import type { BrowserName } from "./capture-options";
 import { runtimeError, usageError } from "./errors";
 import { FLAGS, type Flag } from "./flags";
+import {
+  comparableValue,
+  describeValue,
+  flagOf,
+  IMAGE_OPTION_KEYS,
+  type ImageOptions,
+  imageOptionArgs,
+} from "./image-options";
+import { shellQuote } from "./utils";
 
 /** Where baselines live unless `--baseline-dir` says otherwise, relative to the working directory. */
 export const DEFAULT_BASELINE_DIR = path.join(".chromascope", "baselines");
@@ -55,40 +64,6 @@ export const parseBaselineName = (value: unknown) => {
   return value;
 };
 
-/** How an image option is passed, compared and described. */
-type ImageOptionSpec<Value> = {
-  flag: Flag;
-  /** What to compare, when values that differ capture the same image. Defaults to the value. */
-  comparable?: (value: Value) => unknown;
-  /** The value as it's passed to the flag. Defaults to `on`/`off`, `none` or the value as text. */
-  describe?: (value: Value) => string;
-};
-
-const IMAGE_OPTIONS: { [Key in keyof ImageOptions]: ImageOptionSpec<ImageOptions[Key]> } = {
-  viewport: { flag: FLAGS.viewport, describe: ({ width, height }) => `${width}x${height}` },
-  deviceScaleFactor: { flag: FLAGS.deviceScaleFactor },
-  element: { flag: FLAGS.element },
-  fullPage: { flag: FLAGS.fullPage },
-  waitFor: { flag: FLAGS.waitFor },
-  waitUntil: { flag: FLAGS.waitUntil },
-  // Masks are compared as sets, since their order doesn't change the image.
-  mask: { flag: FLAGS.mask, comparable: (masks) => [...masks].sort(), describe: (masks) => masks.join(", ") || "none" },
-};
-
-const IMAGE_OPTION_KEYS = Object.keys(IMAGE_OPTIONS) as Array<keyof ImageOptions>;
-
-const specOf = <Key extends keyof ImageOptions>(key: Key): ImageOptionSpec<ImageOptions[Key]> => IMAGE_OPTIONS[key];
-
-const comparable = <Key extends keyof ImageOptions>(key: Key, value: ImageOptions[Key]) =>
-  JSON.stringify(specOf(key).comparable?.(value) ?? value);
-
-const describeValue = <Key extends keyof ImageOptions>(key: Key, value: ImageOptions[Key]) => {
-  const { describe } = specOf(key);
-  if (describe) return describe(value);
-  if (typeof value === "boolean") return value ? "on" : "off";
-  return value === null ? "none" : String(value);
-};
-
 /** An image option flag whose value differs from the baseline's, both described as they'd be passed. */
 export type CaptureConflict = { flag: Flag; flagValue: string; baselineValue: string };
 
@@ -98,10 +73,10 @@ const conflictOf = <Key extends keyof ImageOptions>(
   flags: Partial<ImageOptions>,
 ): CaptureConflict[] => {
   const flagValue = flags[key];
-  if (flagValue === undefined || comparable(key, flagValue) === comparable(key, stored[key])) return [];
+  if (flagValue === undefined || comparableValue(key, flagValue) === comparableValue(key, stored[key])) return [];
   return [
     {
-      flag: specOf(key).flag,
+      flag: flagOf(key),
       flagValue: describeValue(key, flagValue),
       baselineValue: describeValue(key, stored[key]),
     },
@@ -121,30 +96,6 @@ export const captureConflictError = (conflicts: CaptureConflict[]) =>
     "leave the option out to reuse the baseline's value, run chromascope snapshot again to capture a new baseline, or accept the new capture with chromascope compare --update",
   );
 
-/** Quotes an argument for a POSIX shell, unless it is safe as is. */
-const quote = (arg: string) => (/^[\w@%+=:,./-]+$/.test(arg) ? arg : `'${arg.replaceAll("'", "'\\''")}'`);
-
-/** The image options that differ from the defaults, so a command can leave out the rest. */
-export const withoutDefaults = (capture: ImageOptions): Partial<ImageOptions> =>
-  Object.fromEntries(
-    IMAGE_OPTION_KEYS.filter(
-      (key) => comparable(key, capture[key]) !== comparable(key, DEFAULT_IMAGE_OPTIONS[key]),
-    ).map((key) => [key, capture[key]]),
-  );
-
-/** The flag that passes the image option. Options that are off, empty or not given have none. */
-const argsOf = <Key extends keyof ImageOptions>(key: Key, value: ImageOptions[Key] | undefined): string[] => {
-  const { flag } = specOf(key);
-  if (value === undefined || value === null || value === false) return [];
-  if (value === true) return [flag];
-  if (Array.isArray(value)) return value.flatMap((item: string) => [flag, quote(item)]);
-  return [flag, quote(describeValue(key, value))];
-};
-
-/** The flags that pass the image options. */
-const imageOptionArgs = (capture: Partial<ImageOptions>) =>
-  IMAGE_OPTION_KEYS.flatMap((key) => argsOf(key, capture[key]));
-
 export type SnapshotCommandOptions = {
   url: string | null;
   name?: string;
@@ -156,12 +107,12 @@ export type SnapshotCommandOptions = {
 
 /** The exact `chromascope snapshot` command that captures the baseline a `compare` is missing. */
 export const snapshotCommand = ({ url, name, capture = {}, browsers, baselineDir }: SnapshotCommandOptions) => {
-  const args = ["chromascope", "snapshot", url === null ? "<url>" : quote(url)];
-  if (name) args.push(FLAGS.name, quote(name));
+  const args = [];
+  if (name) args.push(FLAGS.name, name);
   args.push(...imageOptionArgs(capture));
   if (browsers) args.push(FLAGS.browsers, browsers.join(","));
-  if (baselineDir) args.push(FLAGS.baselineDir, quote(baselineDir));
-  return args.join(" ");
+  if (baselineDir) args.push(FLAGS.baselineDir, baselineDir);
+  return ["chromascope", "snapshot", url === null ? "<url>" : shellQuote(url), ...args.map(shellQuote)].join(" ");
 };
 
 export const baselineNotFound = (message: string, command: SnapshotCommandOptions) =>

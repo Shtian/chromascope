@@ -8,10 +8,10 @@ import {
   captureConflictError,
   deriveBaselineName,
   findCaptureConflicts,
-  withoutDefaults,
 } from "./baselines";
-import type { BrowserName, ImageOptions } from "./capture-options";
+import type { BrowserName } from "./capture-options";
 import { compareImages } from "./image";
+import { type ImageOptions, withoutDefaults } from "./image-options";
 import type { CompareComparison } from "./result";
 
 type StoredBaseline = Pick<Baseline, "metadata" | "has">;

@@ -9,7 +9,8 @@ import {
   shouldClean,
   updatedBaseline,
 } from "./before-after";
-import { type BrowserName, DEFAULT_IMAGE_OPTIONS } from "./capture-options";
+import type { BrowserName } from "./capture-options";
+import { DEFAULT_IMAGE_OPTIONS } from "./image-options";
 
 const metadata: BaselineMetadata = {
   url: "http://localhost:3000/",

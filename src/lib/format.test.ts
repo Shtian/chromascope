@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_IMAGE_OPTIONS } from "./capture-options";
 import {
   formatBaseResult,
   formatClean,
@@ -16,6 +15,7 @@ import {
   formatVersusDecorated,
   formatVersusPlain,
 } from "./format";
+import { DEFAULT_IMAGE_OPTIONS } from "./image-options";
 import type {
   CompareComparison,
   CompareResult,

@@ -1,6 +1,7 @@
 import { compareBeforeAfter } from "../lib/before-after";
 import { captureAll } from "../lib/capture";
-import { type CaptureOptions, pickImageOptions } from "../lib/capture-options";
+import type { CaptureOptions } from "../lib/capture-options";
+import { pickImageOptions } from "../lib/image-options";
 import output from "../lib/output";
 import { SCHEMA_VERSION, timingsOf, type VersusResult } from "../lib/result";
 import { openRun, type RunFolderOptions } from "../lib/run";

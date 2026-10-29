@@ -1,5 +1,6 @@
-import type { BrowserName, ImageOptions, Size } from "./capture-options";
+import type { BrowserName } from "./capture-options";
 import type { ErrorCode } from "./error-codes";
+import type { ImageOptions, Size } from "./image-options";
 
 /**
  * Version of the `--json` document. Adding fields doesn't change it.

@@ -1,7 +1,8 @@
 import { version } from "../../package.json";
 import type { BaselineStore } from "../lib/baselines";
 import { captureAll } from "../lib/capture";
-import { type CaptureOptions, pickImageOptions } from "../lib/capture-options";
+import type { CaptureOptions } from "../lib/capture-options";
+import { pickImageOptions } from "../lib/image-options";
 import { byBrowser, SCHEMA_VERSION, type SnapshotResult, timingsOf } from "../lib/result";
 
 /** Captures a baseline per browser and stores it under the name, replacing any baseline with that name. */

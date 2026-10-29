@@ -12,9 +12,8 @@ import {
   findCaptureConflicts,
   parseBaselineName,
   snapshotCommand,
-  withoutDefaults,
 } from "./baselines";
-import { DEFAULT_IMAGE_OPTIONS } from "./capture-options";
+import { DEFAULT_IMAGE_OPTIONS } from "./image-options";
 
 describe("deriveBaselineName", () => {
   it.each([
@@ -164,20 +163,6 @@ describe("snapshotCommand", () => {
     expect(snapshotCommand({ url: null, capture: { element: "[title='x']", mask: ["a[href$='.pdf']"] } })).toBe(
       "chromascope snapshot <url> --element '[title='\\''x'\\'']' --mask 'a[href$='\\''.pdf'\\'']'",
     );
-  });
-});
-
-describe("withoutDefaults", () => {
-  it("should keep only the image options that differ from the defaults", () => {
-    expect(withoutDefaults(DEFAULT_IMAGE_OPTIONS)).toEqual({});
-    expect(
-      withoutDefaults({
-        ...DEFAULT_IMAGE_OPTIONS,
-        viewport: { width: 400, height: 300 },
-        mask: ["#clock"],
-        fullPage: true,
-      }),
-    ).toEqual({ viewport: { width: 400, height: 300 }, mask: ["#clock"], fullPage: true });
   });
 });
 

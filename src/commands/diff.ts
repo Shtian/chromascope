@@ -1,7 +1,8 @@
 import { PNG } from "pngjs";
 import { captureAll } from "../lib/capture";
-import { type BrowserName, type CaptureOptions, pickImageOptions } from "../lib/capture-options";
+import type { BrowserName, CaptureOptions } from "../lib/capture-options";
 import { compareImages } from "../lib/image";
+import { pickImageOptions } from "../lib/image-options";
 import output from "../lib/output";
 import { byBrowser, type DiffComparison, type DiffResult, SCHEMA_VERSION, timingsOf } from "../lib/result";
 import { openRun, type Run, type RunFolderOptions } from "../lib/run";
