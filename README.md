@@ -238,7 +238,7 @@ hint: check the selector, or raise the timeout with --timeout
 | `MISSING_ARGUMENT` | `2` | A required argument, like the URL, is missing |
 | `UNKNOWN_COMMAND` | `2` | No command has this name |
 | `INVALID_SELECTOR` | `2` | `--element` or `--wait-for` isn't a valid selector |
-| `CAPTURE_OPTION_CONFLICT` | `2` | `compare` got a capture option that differs from the baseline's |
+| `CAPTURE_OPTION_CONFLICT` | `2` | `compare` got an image option that differs from the baseline's |
 | `BROWSER_NOT_INSTALLED` | `3` | A browser is missing. Run `chromascope install` |
 | `NAVIGATION_FAILED` | `3` | The page didn't load, or not within `--timeout` |
 | `SELECTOR_TIMEOUT` | `3` | No element matched `--element` or `--wait-for` within `--timeout` |
@@ -330,7 +330,7 @@ ok folder: /home/me/app/chromascope-runs is writable
    chromascope snapshot localhost:3000/pricing --element .card
    ```
 
-   This stores `.chromascope/baselines/localhost-3000_pricing__card/chromium.png` plus a `metadata.json` with the URL and capture options. The baseline name is derived from the URL's host, port and path and from `--element`; pass `--name` to pick your own. Chromascope also writes `.chromascope/.gitignore`, so baselines are never committed.
+   This stores `.chromascope/baselines/localhost-3000_pricing__card/chromium.png` plus a `metadata.json` with the URL and image options. The baseline name is derived from the URL's host, port and path and from `--element`; pass `--name` to pick your own. Chromascope also writes `.chromascope/.gitignore`, so baselines are never committed.
 
 2. Make the UI change.
 
@@ -346,7 +346,7 @@ ok folder: /home/me/app/chromascope-runs is writable
 
    Without a terminal, `compare` prints one plain line per browser: the browser, the pixel change percentage, the changed pixels, the before and after size as `<width>x<height>-><width>x<height>`, `same-size` or `size-changed`, and the absolute path of the diff image. In a terminal, each browser's box shows the same before and after size and whether it changed.
 
-   `compare` captures the page again with the capture options stored in the baseline and compares each browser against its own baseline. It exits `0` when the change is within `--fail-above` (or without it), `1` above it. Every run writes `before-<browser>.png`, `after-<browser>.png` and `diff-<browser>.png` to a run folder (`--folder`, or exactly `--out`), so you can look at what changed. Use `--json` for the full result, including each browser's before and after size and a `sizeChanged` flag.
+   `compare` captures the page again with the image options stored in the baseline and compares each browser against its own baseline. It exits `0` when the change is within `--fail-above` (or without it), `1` above it. Every run writes `before-<browser>.png`, `after-<browser>.png` and `diff-<browser>.png` to a run folder (`--folder`, or exactly `--out`), so you can look at what changed. Use `--json` for the full result, including each browser's before and after size and a `sizeChanged` flag.
 
 4. Accept the new look, or clean up:
 
@@ -359,7 +359,7 @@ ok folder: /home/me/app/chromascope-runs is writable
 Things to know:
 
 - `snapshot` captures Chromium by default. Pass `--browsers chromium,firefox` to capture more. A bare `compare` compares every browser in the baseline, and `--browsers` picks some of them.
-- `snapshot` always replaces an existing baseline with the same name. `compare` never creates one: without a baseline it exits `3` with `BASELINE_NOT_FOUND` and the exact `snapshot` command to run, with the capture options you gave `compare`. When only a browser is missing, the command recaptures every browser with the baseline's stored capture options, so `compare` runs without a conflict afterwards.
+- `snapshot` always replaces an existing baseline with the same name. `compare` never creates one: without a baseline it exits `3` with `BASELINE_NOT_FOUND` and the exact `snapshot` command to run, with the capture options you gave `compare`. When only a browser is missing, the command recaptures every browser with the baseline's stored image options, so `compare` runs without a conflict afterwards.
 - With `--name`, `compare` can leave out the URL and captures the one stored in the baseline.
 - `compare` reuses the baseline's viewport, device scale factor, element, full page, waits and masks. Passing one of them with a different value is a usage error (`CAPTURE_OPTION_CONFLICT`, exit `2`); run `snapshot` again, or accept the new capture with `compare --update`, which stores the new options too and drops the browsers it didn't capture. `--cookie`, `--timeout`, `--threshold` and `--fail-above` can always be changed.
 - `--mask <selector>` hides dynamic parts of the page, like timestamps or ads, behind a solid box. Repeat it to mask several. It works for `diff` too.
