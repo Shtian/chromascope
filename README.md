@@ -6,6 +6,10 @@
 
 Chromascope captures web pages in real browsers and reports how much they differ visually: across Chromium, WebKit and Firefox (a cross-browser diff), before and after a UI change in the same browser (a before/after comparison), or between two URLs, like production and a local build (a URL comparison). It uses Playwright to capture the screenshots and pixelmatch to compare them.
 
+![chromascope diffing a page across Chromium, WebKit and Firefox, showing the saved visual diff, then failing a CI step with --fail-above](docs/demo.gif)
+
+The demo is recorded with real results from `docs/demo/site`. Rerun it with `pnpm build && node docs/demo/record.mjs` (needs ffmpeg).
+
 ## Usage
 
 Can be installed globally with pnpm|npm|yarn:
