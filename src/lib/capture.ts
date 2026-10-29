@@ -8,10 +8,10 @@ import { parseCookieOptions } from "./utils";
 const browserTypes: Record<BrowserName, BrowserType> = { chromium, webkit, firefox };
 
 /**
- * Captures the page in one browser and returns the PNG. Writes it to `path` too when given.
+ * Captures the page in one browser and returns the PNG.
  * Animations are disabled and the caret is hidden, so repeated captures of an unchanged page match.
  */
-export const capturePage = (browserName: BrowserName, url: string, options: CaptureOptions, path?: string) =>
+export const capturePage = (browserName: BrowserName, url: string, options: CaptureOptions) =>
   withBrowser(browserTypes[browserName], async (browser) => {
     const context = await browser.newContext({
       viewport: options.viewport,
@@ -38,7 +38,7 @@ export const capturePage = (browserName: BrowserName, url: string, options: Capt
     await page.evaluate(() => document.fonts.ready);
 
     const mask = options.mask.map((selector) => page.locator(selector));
-    const screenshotOptions = { path, animations: "disabled", caret: "hide", mask } as const;
+    const screenshotOptions = { animations: "disabled", caret: "hide", mask } as const;
     if (!element) return await page.screenshot({ ...screenshotOptions, fullPage: options.fullPage });
     return await page
       .locator(element)
@@ -52,27 +52,21 @@ export const capturePage = (browserName: BrowserName, url: string, options: Capt
 export type Capture = { browser: BrowserName; image: Buffer; ms: number };
 
 /**
- * Captures the page in every browser at once, showing progress. Writes each image to `pathFor(browser)` when given.
+ * Captures the page in every browser at once, showing progress.
  * Waits for every capture to settle, so no browser is left running, then throws the first failure.
  */
-export const captureAll = async (
-  browsers: BrowserName[],
-  url: string,
-  options: CaptureOptions,
-  pathFor: (browser: BrowserName) => string | undefined = () => undefined,
-): Promise<Capture[]> => {
-  const results = await Promise.allSettled(browsers.map((browser) => capture(browser, url, options, pathFor(browser))));
+export const captureAll = async (browsers: BrowserName[], url: string, options: CaptureOptions): Promise<Capture[]> => {
+  const results = await Promise.allSettled(browsers.map((browser) => capture(browser, url, options)));
   const failed = results.find((result) => result.status === "rejected");
   if (failed) throw failed.reason;
   return results.map((result) => (result as PromiseFulfilledResult<Capture>).value);
 };
 
-const capture = async (browser: BrowserName, url: string, options: CaptureOptions, path?: string) => {
+const capture = async (browser: BrowserName, url: string, options: CaptureOptions) => {
   const step = output.step(`Capturing ${browser} screenshot`, "📷");
   const started = performance.now();
   try {
-    if (path) output.debug(`Saving ${browser} screenshot to ${path}`);
-    const image = await capturePage(browser, url, options, path);
+    const image = await capturePage(browser, url, options);
     step.succeed(`Captured ${browser} screenshot`, "📸");
     return { browser, image, ms: Math.round(performance.now() - started) };
   } catch (error) {

@@ -2,8 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { diff } from "../src/commands/diff";
-import { type ChromascopeOptions, createChromascopeContext } from "../src/context";
-import { parseCaptureOptions } from "../src/lib/capture-options";
+import { type CaptureOptions, parseCaptureOptions } from "../src/lib/capture-options";
 import output from "../src/lib/output";
 import {
   BOX_SIZE,
@@ -40,23 +39,23 @@ describe("diff", () => {
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
-  const run = (options: Partial<ChromascopeOptions> = {}) => {
-    const ctx = createChromascopeContext({
-      ...parseCaptureOptions({}, { browsers: ["chromium", "webkit", "firefox"] }),
+  const run = (capture: Partial<CaptureOptions> = {}, saveDiff = false) => {
+    const pending = diff(server.url, {
+      capture: { ...parseCaptureOptions({}, { browsers: ["chromium", "webkit", "firefox"] }), ...capture },
       base: "chromium",
-      verbose: false,
       threshold: 0.2,
       failAbove: null,
-      folder: path.join(tempDir, "runs"),
-      saveDiff: false,
-      ...options,
-    });
-    const pending = diff(server.url, ctx).then(({ result }) => result);
-    return { ctx, pending, result: pending.then((run) => run.comparisons) };
+      saveDiff,
+      run: { folder: path.join(tempDir, "runs") },
+    }).then(({ result }) => result);
+    return { pending, result: pending.then((run) => run.comparisons) };
   };
 
+  /** The run folder the diff wrote its artifacts to. */
+  const runFolderOf = async (pending: ReturnType<typeof run>["pending"]) => (await pending).artifactsDir ?? "";
+
   it("should compare WebKit and Firefox against Chromium and clean up after itself", async () => {
-    const { ctx, pending } = run();
+    const { pending } = run();
     const { comparisons: result, screenshots, artifactsDir } = await pending;
 
     expect(result.map((r) => r.browser)).toEqual(["webkit", "firefox"]);
@@ -68,29 +67,29 @@ describe("diff", () => {
     }
     expect(screenshots).toEqual({ chromium: null, webkit: null, firefox: null });
     expect(artifactsDir).toBeNull();
-    expect(ctx.saveArtifacts).toBe(false);
     expect(server.cookies).toHaveLength(3);
     expect(listFiles(tempDir)).toEqual([]);
   });
 
   it("should save the screenshots and diffs with --save-diff", async () => {
-    const { ctx, pending } = run({ saveDiff: true });
+    const { pending } = run({}, true);
     const {
+      runId,
       comparisons: [webkit, firefox],
       screenshots,
       artifactsDir,
     } = await pending;
+    const runFolder = artifactsDir ?? "";
 
-    expect(path.isAbsolute(ctx.runFolder)).toBe(true);
-    expect(webkit.diffPath).toBe(path.join(ctx.runFolder, "diff-chromium-webkit.png"));
-    expect(firefox.diffPath).toBe(path.join(ctx.runFolder, "diff-chromium-firefox.png"));
-    expect(artifactsDir).toBe(ctx.runFolder);
+    expect(artifactsDir).toBe(path.join(tempDir, "runs", runId));
+    expect(webkit.diffPath).toBe(path.join(runFolder, "diff-chromium-webkit.png"));
+    expect(firefox.diffPath).toBe(path.join(runFolder, "diff-chromium-firefox.png"));
     expect(screenshots).toEqual({
-      chromium: path.join(ctx.runFolder, "chromium.png"),
-      webkit: path.join(ctx.runFolder, "webkit.png"),
-      firefox: path.join(ctx.runFolder, "firefox.png"),
+      chromium: path.join(runFolder, "chromium.png"),
+      webkit: path.join(runFolder, "webkit.png"),
+      firefox: path.join(runFolder, "firefox.png"),
     });
-    expect(listFiles(ctx.runFolder)).toEqual([
+    expect(listFiles(runFolder)).toEqual([
       "chromium.png",
       "diff-chromium-firefox.png",
       "diff-chromium-webkit.png",
@@ -98,16 +97,17 @@ describe("diff", () => {
       "webkit.png",
     ]);
     for (const browser of BROWSERS) {
-      expect(readPngSize(path.join(ctx.runFolder, `${browser}.png`))).toEqual(VIEWPORT_SIZE);
+      expect(readPngSize(path.join(runFolder, `${browser}.png`))).toEqual(VIEWPORT_SIZE);
     }
   });
 
   it("should screenshot only the element with --element", async () => {
-    const { ctx, result } = run({ saveDiff: true, element: "#box" });
+    const { pending, result } = run({ element: "#box" }, true);
     const [webkit, firefox] = await result;
+    const runFolder = await runFolderOf(pending);
 
     for (const browser of BROWSERS) {
-      expect(readPngSize(path.join(ctx.runFolder, `${browser}.png`))).toEqual(BOX_SIZE);
+      expect(readPngSize(path.join(runFolder, `${browser}.png`))).toEqual(BOX_SIZE);
     }
     expect(readPngSize(webkit.diffPath ?? "")).toEqual(BOX_SIZE);
     expect(readPngSize(firefox.diffPath ?? "")).toEqual(BOX_SIZE);
@@ -115,11 +115,10 @@ describe("diff", () => {
   });
 
   it("should screenshot the whole page with --full-page", async () => {
-    const { ctx, result } = run({ saveDiff: true, fullPage: true });
-    await result;
+    const runFolder = await runFolderOf(run({ fullPage: true }, true).pending);
 
     for (const browser of BROWSERS) {
-      const size = readPngSize(path.join(ctx.runFolder, `${browser}.png`));
+      const size = readPngSize(path.join(runFolder, `${browser}.png`));
       expect(size.width).toBe(VIEWPORT_SIZE.width);
       expect(size.height).toBeGreaterThanOrEqual(PAGE_HEIGHT);
     }

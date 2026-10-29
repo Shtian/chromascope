@@ -6,7 +6,6 @@ import { compare } from "./commands/compare";
 import { diff } from "./commands/diff";
 import { snapshot } from "./commands/snapshot";
 import { versus } from "./commands/versus";
-import { createChromascopeContext } from "./context";
 import { createBaselineStore, DEFAULT_BASELINE_DIR, deriveBaselineName, parseBaselineName } from "./lib/baselines";
 import {
   BROWSERS,
@@ -154,22 +153,20 @@ withRunFolderOptions(
     configureOutput(options);
     const normalizedUrl = parseUrl(url);
     const capture = parseCaptureOptions(options, { browsers: ["chromium", "webkit", "firefox"] });
-    const ctx = createChromascopeContext({
-      ...capture,
-      ...parseBase(options.base, capture.browsers),
-      verbose: Boolean(options.verbose),
+    const { base, browsers } = parseBase(options.base, capture.browsers);
+    const diffOptions = {
+      capture: { ...capture, browsers },
+      base,
       threshold: parseThreshold(options.threshold),
       failAbove: parseFailAboveOption(options),
-      ...parseRunFolderOptions(options),
       saveDiff: Boolean(options.saveDiff),
-    });
+      run: parseRunFolderOptions(options),
+    };
 
     output.debug(`Options provided: ${JSON.stringify(options)}`);
     output.debug(`Diffing URL: ${normalizedUrl}`);
-    output.debug(`Run ID: ${ctx.runId}`);
-    if (ctx.saveArtifacts) output.debug(`Run folder: ${ctx.runFolder}`);
 
-    const { result, aboveFailAbove } = await diff(normalizedUrl, ctx);
+    const { result, aboveFailAbove } = await diff(normalizedUrl, diffOptions);
     output.info("Diff complete", "🎉");
     printResult(result, formatDiffPlain, formatDiffDecorated);
     return failAboveExitCode(aboveFailAbove, result.options.failAbove);

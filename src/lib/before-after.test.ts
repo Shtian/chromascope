@@ -215,7 +215,11 @@ describe("compareBeforeAfter", () => {
       afterPath: path.join(runFolder, "after-firefox.png"),
       diffPath: path.join(runFolder, "diff-firefox.png"),
     });
-    expect(files.map(([file]) => file)).toEqual([comparison.beforePath, comparison.afterPath, comparison.diffPath]);
+    expect(files.map(([name]) => path.join(runFolder, name))).toEqual([
+      comparison.beforePath,
+      comparison.afterPath,
+      comparison.diffPath,
+    ]);
     expect(files[0][1]).toBe(image);
     expect(files[1][1]).toBe(image);
     expect(PNG.sync.read(files[2][1])).toMatchObject({ width: 4, height: 2 });
