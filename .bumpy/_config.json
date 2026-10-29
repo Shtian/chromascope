@@ -4,6 +4,7 @@
   "changelog": "default",
   "changedFilePatterns": ["src/**", "package.json"],
   "publish": {
-    "provenance": true
+    "provenance": true,
+    "npmStaged": true
   }
 }
