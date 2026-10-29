@@ -25,6 +25,7 @@ export type {
   ErrorResult,
   SnapshotResult,
   Timings,
+  VersusResult,
 } from "./lib/result";
 
 /** The `schemaVersion` of every `--json` document. */

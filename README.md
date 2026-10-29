@@ -4,7 +4,7 @@
 
 ![npm](https://img.shields.io/npm/v/chromascope) ![GitHub Workflow Status (with branch)](https://img.shields.io/github/actions/workflow/status/shtian/chromascope/main.yml?branch=main)
 
-Chromascope captures web pages in real browsers and reports how much they differ visually: across Chromium, WebKit and Firefox (a cross-browser diff), or before and after a UI change in the same browser (a before/after comparison). It uses Playwright to capture the screenshots and pixelmatch to compare them.
+Chromascope captures web pages in real browsers and reports how much they differ visually: across Chromium, WebKit and Firefox (a cross-browser diff), before and after a UI change in the same browser (a before/after comparison), or between two URLs, like production and a local build (a URL comparison). It uses Playwright to capture the screenshots and pixelmatch to compare them.
 
 ## Usage
 
@@ -40,17 +40,19 @@ Usage:
   $ chromascope <command> [options]
 
 Commands:
-  diff <url>      Capture the URL in several browsers and compare each against the base browser
-  snapshot <url>  Capture a baseline of the URL for a later compare
-  compare [url]   Capture the URL again and compare each browser against its baseline
-  clean [name]    Delete the baseline with this name, or every baseline
-  doctor          Check that Node, the browsers and the output folder are ready for chromascope
-  install         Install the chromium, firefox, and webkit browsers used by chromascope
+  diff <url>                       Capture the URL in several browsers and compare each against the base browser
+  snapshot <url>                   Capture a baseline of the URL for a later compare
+  compare [url]                    Capture the URL again and compare each browser against its baseline
+  versus <before-url> <after-url>  Run a URL comparison: compare the second URL against the first in each browser
+  clean [name]                     Delete the baseline with this name, or every baseline
+  doctor                           Check that Node, the browsers and the output folder are ready for chromascope
+  install                          Install the chromium, firefox, and webkit browsers used by chromascope
 
 For more info, run any command with the `--help` flag:
   $ chromascope diff --help
   $ chromascope snapshot --help
   $ chromascope compare --help
+  $ chromascope versus --help
   $ chromascope clean --help
   $ chromascope doctor --help
   $ chromascope install --help
@@ -210,7 +212,7 @@ import type { CompareResult, DiffResult, ErrorResult } from "chromascope";
 const result: DiffResult | ErrorResult = JSON.parse(stdout);
 ```
 
-It exports `DiffResult`, `CompareResult`, `SnapshotResult`, `CleanResult`, `DoctorResult` and `ErrorResult`, the per-browser `DiffComparison` and `CompareComparison`, the per-check `DoctorCheck`, the shared `CapturedOptions`, `ComparedOptions` and `Timings`, and `SchemaVersion`, `ErrorCode`, `BrowserName`, `ImageOptions`, `WaitUntil` and `Size`. `Viewport` is a deprecated alias of `Size`.
+It exports `DiffResult`, `CompareResult`, `VersusResult`, `SnapshotResult`, `CleanResult`, `DoctorResult` and `ErrorResult`, the per-browser `DiffComparison` and `CompareComparison`, the per-check `DoctorCheck`, the shared `CapturedOptions`, `ComparedOptions` and `Timings`, and `SchemaVersion`, `ErrorCode`, `BrowserName`, `ImageOptions`, `WaitUntil` and `Size`. `Viewport` is a deprecated alias of `Size`.
 
 #### Exit codes and errors
 
@@ -248,7 +250,7 @@ hint: check the selector, or raise the timeout with --timeout
 
 #### Capture options
 
-These flags control how the page is captured, so runs are fast and repeatable. `diff`, `snapshot` and `compare` share them:
+These flags control how the page is captured, so runs are fast and repeatable. `diff`, `snapshot`, `compare` and `versus` share them:
 
 - `--browsers <list>` captures only these browsers, like `--browsers chromium,firefox`. `--base <browser>` picks the browser the others are compared against (default `chromium`). The base browser is always captured.
 - `--viewport <width>x<height>` (default `1280x720`) and `--device-scale-factor <n>` (default `1`) set the page size. A device scale factor of `2` doubles the screenshot's pixel size.
@@ -475,6 +477,73 @@ Options:
   --json                Print the result, or the error, as one JSON document on stdout
   --baseline-dir <dir>  Folder the baselines are stored in (default: .chromascope/baselines)
   -h, --help            Display this message
+
+Exit codes:
+  0  Success: every comparison is within --fail-above, or no --fail-above was given, or compare --update
+  1  At least one comparison is above --fail-above
+  2  Usage error: unknown command or option, missing or invalid argument
+  3  Runtime error: navigation failed, selector not found, timeout, browser or baseline missing,
+     or a doctor check failed
+
+Error codes:
+  Usage (exit 2):   INVALID_URL, INVALID_OPTION, INVALID_ARGUMENT, MISSING_ARGUMENT, UNKNOWN_COMMAND,
+                    INVALID_SELECTOR, CAPTURE_OPTION_CONFLICT
+  Runtime (exit 3): BROWSER_NOT_INSTALLED, NAVIGATION_FAILED, SELECTOR_TIMEOUT, BASELINE_NOT_FOUND,
+                    BASELINE_INVALID, UNKNOWN_ERROR
+```
+
+### Compare two URLs
+
+`versus` (alias `vs`) runs a URL comparison: it captures two URLs in each browser and compares each browser's capture of the second URL against its capture of the first. Use it when the "before" is already served somewhere, like production, so there is nothing to `snapshot`:
+
+```bash
+chromascope versus https://example.com/pricing localhost:3000/pricing --element .card --fail-above 0
+```
+
+```
+chromium 2.17% 434px 200x100->200x100 same-size /home/me/app/chromascope-runs/20261028160312-a1b2c3/diff-chromium.png
+webkit 2.17% 434px 200x100->200x100 same-size /home/me/app/chromascope-runs/20261028160312-a1b2c3/diff-webkit.png
+firefox 2.17% 434px 200x100->200x100 same-size /home/me/app/chromascope-runs/20261028160312-a1b2c3/diff-firefox.png
+```
+
+- The first URL is always "before" and the second "after". Browsers are never compared with each other. Chromium, WebKit and Firefox run by default; `--browsers` picks some of them.
+- Both URLs are captured with the same capture options. There are no per-URL flags. `--cookie` takes one list and sets it for whichever URL is captured, so the same cookies reach both hosts.
+- It never reads or writes baselines, so `--name`, `--update`, `--clean` and `--baseline-dir` don't exist here.
+- Everything else works like `compare`: the plain output, `before-`, `after-` and `diff-<browser>.png` in a run folder (`--folder`, or exactly `--out`), `--threshold`, and `--fail-above` with the same exit codes.
+
+The `--json` document uses the same envelope as `compare`, with `"command": "versus"`, `beforeUrl` and `afterUrl` instead of `url`, and none of `name`, `baselineDir`, `updated` or `cleaned`. Its TypeScript type is `VersusResult`.
+
+```bash
+$ chromascope versus --help
+chromascope/x.x.x
+
+Usage:
+  $ chromascope versus <before-url> <after-url>
+
+Options:
+  --browsers <list>            Comma separated browsers to capture (default: chromium,webkit,firefox)
+  -e, --element <selector>     Capture only the element with the given selector
+  -f, --full-page              Take a full page screenshot
+  --viewport <size>            Viewport size as <width>x<height> (default: 1280x720)
+  --device-scale-factor <n>    Device scale factor, like 2 for retina screenshots (default: 1)
+  --timeout <ms>               Milliseconds each navigation, wait and capture may take (default: 30000)
+  --wait-for <selector>        Wait for the selector to be visible before capturing
+  --wait-until <event>         Page load event to wait for: load, domcontentloaded or networkidle (default: load)
+  --mask <selector>            Hide the elements matching the selector. Repeat it to mask more
+  -c, --cookie <cookie>        Add one or more cookies to the context. Format: key=value;key2=value2
+  -v, --verbose                Print debug output on stderr
+  -q, --quiet                  Print no progress on stderr. Errors still print
+  --json                       Print the result, or the error, as one JSON document on stdout
+  -t, --threshold <threshold>  Set the threshold for the diff (default: 0.2)
+  --fail-above <percent>       Exit with 1 when a browser's pixel change is above this percentage
+  -o, --folder <folder>        Set the base folder for chromascope runs (default: chromascope-runs)
+  --out <dir>                  Save the before, after and diff images in exactly this folder, without a run folder
+  -h, --help                   Display this message
+
+Examples:
+  $ chromascope versus https://example.com localhost:3000 --fail-above 0
+  $ chromascope vs https://example.com/pricing localhost:3000/pricing --element .card --browsers chromium,webkit
+  $ chromascope versus https://example.com localhost:3000 --cookie session=abc --json --out /tmp/versus
 
 Exit codes:
   0  Success: every comparison is within --fail-above, or no --fail-above was given, or compare --update

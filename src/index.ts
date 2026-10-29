@@ -5,6 +5,7 @@ import { version } from "../package.json";
 import { compare } from "./commands/compare";
 import { diff } from "./commands/diff";
 import { snapshot } from "./commands/snapshot";
+import { versus } from "./commands/versus";
 import { createChromascopeContext } from "./context";
 import { createBaselineStore, DEFAULT_BASELINE_DIR, deriveBaselineName, parseBaselineName } from "./lib/baselines";
 import {
@@ -37,6 +38,8 @@ import {
   formatJson,
   formatSnapshotDecorated,
   formatSnapshotPlain,
+  formatVersusDecorated,
+  formatVersusPlain,
 } from "./lib/format";
 import { installBrowsers } from "./lib/install";
 import output from "./lib/output";
@@ -79,7 +82,7 @@ const withOutputOptions = (command: Command) =>
     .option(`-q, ${FLAGS.quiet}`, "Print no progress on stderr. Errors still print")
     .option(FLAGS.json, "Print the result, or the error, as one JSON document on stdout");
 
-/** Adds the flags that decide how pixels are compared, shared by `diff` and `compare`. */
+/** Adds the flags that decide how pixels are compared, shared by `diff`, `compare` and `versus`. */
 const withComparisonOptions = (command: Command) =>
   command
     .option(`-t, ${FLAGS.threshold} <threshold>`, "Set the threshold for the diff", {
@@ -96,7 +99,7 @@ const withFolderOption = (command: Command) =>
     default: "chromascope-runs",
   });
 
-/** Adds `--folder` and `--out`, which decide where a run writes its artifacts, shared by `diff` and `compare`. */
+/** Adds `--folder` and `--out`, which decide where a run writes its artifacts, shared by `diff`, `compare` and `versus`. */
 const withRunFolderOptions = (command: Command, artifacts: string) =>
   withFolderOption(command).option(
     `${FLAGS.out} <dir>`,
@@ -261,6 +264,42 @@ withRunFolderOptions(
     if (result.cleaned) output.info(`Deleted baseline ${JSON.stringify(result.name)}`);
     printResult(result, formatComparePlain, formatCompareDecorated);
     return failAboveExitCode(aboveFailAbove, result.options.failAbove, result.updated);
+  });
+
+withRunFolderOptions(
+  withComparisonOptions(
+    withOutputOptions(
+      withCaptureOptions(
+        cli.command(
+          "versus <before-url> <after-url>",
+          "Run a URL comparison: compare the second URL against the first in each browser",
+        ),
+        { browsers: "chromium,webkit,firefox" },
+      ),
+    ),
+  ),
+  "before, after and diff images",
+)
+  .alias("vs")
+  .example("  $ chromascope versus https://example.com localhost:3000 --fail-above 0")
+  .example(
+    "  $ chromascope vs https://example.com/pricing localhost:3000/pricing --element .card --browsers chromium,webkit",
+  )
+  .example("  $ chromascope versus https://example.com localhost:3000 --cookie session=abc --json --out /tmp/versus")
+  .action(async (beforeUrl: string, afterUrl: string, options: Flags) => {
+    configureOutput(options);
+    const { result, aboveFailAbove } = await versus({
+      beforeUrl: parseUrl(beforeUrl),
+      afterUrl: parseUrl(afterUrl),
+      capture: parseCaptureOptions(options, { browsers: ["chromium", "webkit", "firefox"] }),
+      threshold: parseThreshold(options.threshold),
+      failAbove: parseFailAboveOption(options),
+      run: parseRunFolderOptions(options),
+    });
+
+    output.info("URL comparison complete", "🎉");
+    printResult(result, formatVersusPlain, formatVersusDecorated);
+    return failAboveExitCode(aboveFailAbove, result.options.failAbove);
   });
 
 withBaselineDir(

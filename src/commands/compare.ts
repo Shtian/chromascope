@@ -2,7 +2,7 @@ import fs from "node:fs";
 import { version } from "../../package.json";
 import { type RunFolderOptions, resolveRun } from "../context";
 import { type BaselineStore, deriveBaselineName } from "../lib/baselines";
-import { compareWithBaseline, planComparison, shouldClean, updatedBaseline } from "../lib/before-after";
+import { compareBeforeAfter, planComparison, shouldClean, updatedBaseline } from "../lib/before-after";
 import { captureAll } from "../lib/capture";
 import type { BrowserName, ImageOptions } from "../lib/capture-options";
 import output from "../lib/output";
@@ -63,7 +63,7 @@ export const compare = async (options: CompareOptions, store: BaselineStore) => 
   const captures = await captureAll(browsers, url, { ...capture, browsers, timeout, cookie });
 
   const comparisons = captures.map(({ browser, image }) => {
-    const { comparison, files } = compareWithBaseline(
+    const { comparison, files } = compareBeforeAfter(
       browser,
       fs.readFileSync(imagePath(browser)),
       image,

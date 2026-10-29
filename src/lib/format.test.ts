@@ -13,6 +13,8 @@ import {
   formatResult,
   formatSnapshotDecorated,
   formatSnapshotPlain,
+  formatVersusDecorated,
+  formatVersusPlain,
 } from "./format";
 import type {
   CompareComparison,
@@ -21,6 +23,7 @@ import type {
   DiffResult,
   DoctorResult,
   SnapshotResult,
+  VersusResult,
 } from "./result";
 
 const comparison = (overrides: Partial<DiffComparison> = {}): DiffComparison => ({
@@ -242,6 +245,38 @@ describe("formatCompareDecorated", () => {
       compareResult([compareComparison({ after: { width: 1280, height: 800 }, sizeChanged: true })]),
     );
     expect(lines[2]).toBe("├─ 👉 Size 1280x720 before, 1280x800 after (changed: the added area counts as changed)");
+  });
+});
+
+const versusResult = (comparisons: CompareComparison[]): VersusResult => ({
+  schemaVersion: 1,
+  command: "versus",
+  runId: "20261028160312-a1b2c3",
+  beforeUrl: "https://example.com/",
+  afterUrl: "http://localhost:3000/",
+  options: { ...DEFAULT_IMAGE_OPTIONS, browsers: ["chromium"], threshold: 0.2, failAbove: null, timeout: 30_000 },
+  artifactsDir: "/runs/1",
+  comparisons,
+  timings: { totalMs: 2000, captureMs: { chromium: 1500 } },
+});
+
+describe("formatVersusPlain", () => {
+  it("should print the same line per browser as compare", () => {
+    const comparisons = [compareComparison(), compareComparison({ browser: "firefox", sizeChanged: true })];
+    expect(formatVersusPlain(versusResult(comparisons))).toEqual(formatComparePlain(compareResult(comparisons)));
+  });
+});
+
+describe("formatVersusDecorated", () => {
+  it("should print the change against the before URL, the sizes and the images", () => {
+    expect(formatVersusDecorated(versusResult([compareComparison()]))).toEqual([
+      "┌─ 🌐 Chromium",
+      "├─ 👉 2.17% pixel change compared to https://example.com/ (20000px)",
+      "├─ 👉 Size 1280x720 before, 1280x720 after (unchanged)",
+      "├─ 👉 Before stored at /runs/1/before-chromium.png",
+      "├─ 👉 After stored at /runs/1/after-chromium.png",
+      "└─ 👉 Visual diff stored at /runs/1/diff-chromium.png",
+    ]);
   });
 });
 

@@ -109,6 +109,22 @@ export type CompareResult = {
   timings: Timings;
 };
 
+/** The result of `chromascope versus`, a URL comparison, as printed by `--json`. */
+export type VersusResult = {
+  schemaVersion: typeof SCHEMA_VERSION;
+  command: "versus";
+  runId: string;
+  /** The first URL, captured as "before". */
+  beforeUrl: string;
+  /** The second URL, captured as "after" and compared against the first. */
+  afterUrl: string;
+  options: ComparedOptions;
+  /** Absolute path of the run folder with the before, after and diff images. */
+  artifactsDir: string;
+  comparisons: CompareComparison[];
+  timings: Timings;
+};
+
 /** The result of `chromascope snapshot`, as printed by `--json`. */
 export type SnapshotResult = {
   schemaVersion: typeof SCHEMA_VERSION;
