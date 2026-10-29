@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { type BrowserName, DEFAULT_IMAGE_OPTIONS, type ImageOptions } from "./capture-options";
 import { runtimeError, usageError } from "./errors";
+import { FLAGS, type Flag } from "./flags";
 
 /** Where baselines live unless `--baseline-dir` says otherwise, relative to the working directory. */
 export const DEFAULT_BASELINE_DIR = path.join(".chromascope", "baselines");
@@ -47,53 +48,76 @@ export const parseBaselineName = (value: unknown) => {
   if (typeof value !== "string" || !nameRegex.test(value) || value.length > MAX_NAME_LENGTH) {
     throw usageError(
       "INVALID_OPTION",
-      `--name must be up to ${MAX_NAME_LENGTH} letters, digits, dots, dashes and underscores, got ${JSON.stringify(value)}`,
-      "pick a name like --name pricing-page",
+      `${FLAGS.name} must be up to ${MAX_NAME_LENGTH} letters, digits, dots, dashes and underscores, got ${JSON.stringify(value)}`,
+      `pick a name like ${FLAGS.name} pricing-page`,
     );
   }
   return value;
 };
 
-const optionFlags: Record<keyof ImageOptions, string> = {
-  viewport: "--viewport",
-  deviceScaleFactor: "--device-scale-factor",
-  element: "--element",
-  fullPage: "--full-page",
-  waitFor: "--wait-for",
-  waitUntil: "--wait-until",
-  mask: "--mask",
+/** How an image option is passed, compared and described. */
+type ImageOptionSpec<Value> = {
+  flag: Flag;
+  /** What to compare, when values that differ capture the same image. Defaults to the value. */
+  comparable?: (value: Value) => unknown;
+  /** The value as it's passed to the flag. Defaults to `on`/`off`, `none` or the value as text. */
+  describe?: (value: Value) => string;
 };
 
-/** Masks are compared as sets, since their order doesn't change the image. */
-const comparable = (key: keyof ImageOptions, value: unknown) =>
-  JSON.stringify(key === "mask" ? [...(value as string[])].sort() : value);
+const IMAGE_OPTIONS: { [Key in keyof ImageOptions]: ImageOptionSpec<ImageOptions[Key]> } = {
+  viewport: { flag: FLAGS.viewport, describe: ({ width, height }) => `${width}x${height}` },
+  deviceScaleFactor: { flag: FLAGS.deviceScaleFactor },
+  element: { flag: FLAGS.element },
+  fullPage: { flag: FLAGS.fullPage },
+  waitFor: { flag: FLAGS.waitFor },
+  waitUntil: { flag: FLAGS.waitUntil },
+  // Masks are compared as sets, since their order doesn't change the image.
+  mask: { flag: FLAGS.mask, comparable: (masks) => [...masks].sort(), describe: (masks) => masks.join(", ") || "none" },
+};
 
-const describeValue = (key: keyof ImageOptions, value: unknown) => {
-  if (key === "viewport") {
-    const { width, height } = value as ImageOptions["viewport"];
-    return `${width}x${height}`;
-  }
-  if (key === "mask") return (value as string[]).join(", ") || "none";
+const IMAGE_OPTION_KEYS = Object.keys(IMAGE_OPTIONS) as Array<keyof ImageOptions>;
+
+const specOf = <Key extends keyof ImageOptions>(key: Key): ImageOptionSpec<ImageOptions[Key]> => IMAGE_OPTIONS[key];
+
+const comparable = <Key extends keyof ImageOptions>(key: Key, value: ImageOptions[Key]) =>
+  JSON.stringify(specOf(key).comparable?.(value) ?? value);
+
+const describeValue = <Key extends keyof ImageOptions>(key: Key, value: ImageOptions[Key]) => {
+  const { describe } = specOf(key);
+  if (describe) return describe(value);
   if (typeof value === "boolean") return value ? "on" : "off";
   return value === null ? "none" : String(value);
 };
 
-export type CaptureConflict = { flag: string; given: string; stored: string };
+/** An image option flag whose value differs from the baseline's, both described as they'd be passed. */
+export type CaptureConflict = { flag: Flag; flagValue: string; baselineValue: string };
 
-/** The given capture options whose value differs from the baseline's. Options that weren't given never conflict. */
-export const findCaptureConflicts = (stored: ImageOptions, given: Partial<ImageOptions>): CaptureConflict[] =>
-  (Object.keys(optionFlags) as Array<keyof ImageOptions>)
-    .filter((key) => given[key] !== undefined && comparable(key, given[key]) !== comparable(key, stored[key]))
-    .map((key) => ({
-      flag: optionFlags[key],
-      given: describeValue(key, given[key]),
-      stored: describeValue(key, stored[key]),
-    }));
+const conflictOf = <Key extends keyof ImageOptions>(
+  key: Key,
+  stored: ImageOptions,
+  flags: Partial<ImageOptions>,
+): CaptureConflict[] => {
+  const flagValue = flags[key];
+  if (flagValue === undefined || comparable(key, flagValue) === comparable(key, stored[key])) return [];
+  return [
+    {
+      flag: specOf(key).flag,
+      flagValue: describeValue(key, flagValue),
+      baselineValue: describeValue(key, stored[key]),
+    },
+  ];
+};
+
+/** The image option flags whose value differs from the baseline's. Flags that weren't passed never conflict. */
+export const findCaptureConflicts = (stored: ImageOptions, flags: Partial<ImageOptions>): CaptureConflict[] =>
+  IMAGE_OPTION_KEYS.flatMap((key) => conflictOf(key, stored, flags));
 
 export const captureConflictError = (conflicts: CaptureConflict[]) =>
   usageError(
     "CAPTURE_OPTION_CONFLICT",
-    conflicts.map(({ flag, given, stored }) => `${flag} ${given} differs from the baseline's ${stored}`).join("; "),
+    conflicts
+      .map(({ flag, flagValue, baselineValue }) => `${flag} ${flagValue} differs from the baseline's ${baselineValue}`)
+      .join("; "),
     "leave the option out to reuse the baseline's value, run chromascope snapshot again to capture a new baseline, or accept the new capture with chromascope compare --update",
   );
 
@@ -103,22 +127,23 @@ const quote = (arg: string) => (/^[\w@%+=:,./-]+$/.test(arg) ? arg : `'${arg.rep
 /** The image options that differ from the defaults, so a command can leave out the rest. */
 export const withoutDefaults = (capture: ImageOptions): Partial<ImageOptions> =>
   Object.fromEntries(
-    (Object.keys(optionFlags) as Array<keyof ImageOptions>)
-      .filter((key) => comparable(key, capture[key]) !== comparable(key, DEFAULT_IMAGE_OPTIONS[key]))
-      .map((key) => [key, capture[key]]),
+    IMAGE_OPTION_KEYS.filter(
+      (key) => comparable(key, capture[key]) !== comparable(key, DEFAULT_IMAGE_OPTIONS[key]),
+    ).map((key) => [key, capture[key]]),
   );
 
-/** The flags that pass the image options. Options that are off, empty or not given are left out. */
+/** The flag that passes the image option. Options that are off, empty or not given have none. */
+const argsOf = <Key extends keyof ImageOptions>(key: Key, value: ImageOptions[Key] | undefined): string[] => {
+  const { flag } = specOf(key);
+  if (value === undefined || value === null || value === false) return [];
+  if (value === true) return [flag];
+  if (Array.isArray(value)) return value.flatMap((item: string) => [flag, quote(item)]);
+  return [flag, quote(describeValue(key, value))];
+};
+
+/** The flags that pass the image options. */
 const imageOptionArgs = (capture: Partial<ImageOptions>) =>
-  (Object.keys(optionFlags) as Array<keyof ImageOptions>).flatMap((key) => {
-    const flag = optionFlags[key];
-    const value = capture[key];
-    if (value === undefined || value === null || value === false) return [];
-    if (value === true) return [flag];
-    if (key === "viewport") return [flag, describeValue(key, value)];
-    if (Array.isArray(value)) return value.flatMap((item) => [flag, quote(item)]);
-    return [flag, quote(String(value))];
-  });
+  IMAGE_OPTION_KEYS.flatMap((key) => argsOf(key, capture[key]));
 
 export type SnapshotCommandOptions = {
   url: string | null;
@@ -132,10 +157,10 @@ export type SnapshotCommandOptions = {
 /** The exact `chromascope snapshot` command that captures the baseline a `compare` is missing. */
 export const snapshotCommand = ({ url, name, capture = {}, browsers, baselineDir }: SnapshotCommandOptions) => {
   const args = ["chromascope", "snapshot", url === null ? "<url>" : quote(url)];
-  if (name) args.push("--name", quote(name));
+  if (name) args.push(FLAGS.name, quote(name));
   args.push(...imageOptionArgs(capture));
-  if (browsers) args.push("--browsers", browsers.join(","));
-  if (baselineDir) args.push("--baseline-dir", quote(baselineDir));
+  if (browsers) args.push(FLAGS.browsers, browsers.join(","));
+  if (baselineDir) args.push(FLAGS.baselineDir, quote(baselineDir));
   return args.join(" ");
 };
 
@@ -176,6 +201,7 @@ const createRoot = (root: string) => {
 export const createBaselineStore = (baselineDir: string | undefined, cwd = process.cwd()) => {
   const root = path.resolve(cwd, baselineDir ?? DEFAULT_BASELINE_DIR);
   const dirOf = (name: string) => path.join(root, name);
+  const imagePathIn = (dir: string) => (browser: BrowserName) => path.join(dir, `${browser}.png`);
 
   /** Removes the folder and returns its path, or `null` when there was nothing to remove. */
   const removeDir = (dir: string) => {
@@ -187,15 +213,23 @@ export const createBaselineStore = (baselineDir: string | undefined, cwd = proce
   return {
     root,
 
-    /** Replaces the baseline with this name: every image and the metadata. */
+    /**
+     * Replaces the baseline with this name: every image and the metadata.
+     * Returns the baseline's folder and the absolute path of each image written.
+     */
     write(name: string, metadata: BaselineMetadata, images: Partial<Record<BrowserName, Buffer>>) {
       createRoot(root);
       const dir = dirOf(name);
+      const imagePath = imagePathIn(dir);
       fs.rmSync(dir, { recursive: true, force: true });
       fs.mkdirSync(dir, { recursive: true });
-      for (const [browser, image] of Object.entries(images)) fs.writeFileSync(path.join(dir, `${browser}.png`), image);
+      const written: Partial<Record<BrowserName, string>> = {};
+      for (const [browser, image] of Object.entries(images) as Array<[BrowserName, Buffer]>) {
+        written[browser] = imagePath(browser);
+        fs.writeFileSync(written[browser], image);
+      }
       fs.writeFileSync(path.join(dir, METADATA_FILE), `${JSON.stringify(metadata, null, 2)}\n`);
-      return dir;
+      return { dir, images: written };
     },
 
     /** The baseline with this name, or `undefined` when there is none. */
@@ -214,7 +248,7 @@ export const createBaselineStore = (baselineDir: string | undefined, cwd = proce
           { cause: error },
         );
       }
-      const imagePath = (browser: BrowserName) => path.join(dir, `${browser}.png`);
+      const imagePath = imagePathIn(dir);
       const has = (browser: BrowserName) => metadata.browsers.includes(browser) && fs.existsSync(imagePath(browser));
       return { dir, metadata, imagePath, has };
     },

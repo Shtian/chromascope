@@ -16,7 +16,16 @@ import {
   parseImageOptions,
 } from "./lib/capture-options";
 import { runDoctor } from "./lib/doctor";
-import { EXIT_CODES, exitCodeFor, formatError, toChromascopeError, toErrorResult, usageError } from "./lib/errors";
+import {
+  EXIT_CODES,
+  exitCodeFor,
+  formatError,
+  formatErrorCodes,
+  toChromascopeError,
+  toErrorResult,
+  usageError,
+} from "./lib/errors";
+import { FLAGS } from "./lib/flags";
 import {
   formatClean,
   formatCompareDecorated,
@@ -32,7 +41,7 @@ import {
 import { installBrowsers } from "./lib/install";
 import output from "./lib/output";
 import { type CleanResult, SCHEMA_VERSION } from "./lib/result";
-import { isAboveFailAbove, parseFailAbove, parseThreshold, parseUrl } from "./lib/utils";
+import { parseFailAbove, parseThreshold, parseUrl } from "./lib/utils";
 
 type Flags = CaptureFlags & Record<string, unknown>;
 
@@ -46,19 +55,19 @@ const withCaptureOptions = (command: Command, { browsers, fromBaseline = false }
   const byDefault = (value?: string) =>
     fromBaseline ? " (default: the baseline's)" : value ? ` (default: ${value})` : "";
   return command
-    .option("--browsers <list>", `Comma separated browsers to capture (default: ${browsers})`)
-    .option("-e, --element <selector>", `Capture only the element with the given selector${byDefault()}`)
-    .option("-f, --full-page", `Take a full page screenshot${byDefault()}`)
-    .option("--viewport <size>", `Viewport size as <width>x<height>${byDefault("1280x720")}`)
-    .option("--device-scale-factor <n>", `Device scale factor, like 2 for retina screenshots${byDefault("1")}`)
-    .option("--timeout <ms>", "Milliseconds each navigation, wait and capture may take (default: 30000)")
-    .option("--wait-for <selector>", `Wait for the selector to be visible before capturing${byDefault()}`)
+    .option(`${FLAGS.browsers} <list>`, `Comma separated browsers to capture (default: ${browsers})`)
+    .option(`-e, ${FLAGS.element} <selector>`, `Capture only the element with the given selector${byDefault()}`)
+    .option(`-f, ${FLAGS.fullPage}`, `Take a full page screenshot${byDefault()}`)
+    .option(`${FLAGS.viewport} <size>`, `Viewport size as <width>x<height>${byDefault("1280x720")}`)
+    .option(`${FLAGS.deviceScaleFactor} <n>`, `Device scale factor, like 2 for retina screenshots${byDefault("1")}`)
+    .option(`${FLAGS.timeout} <ms>`, "Milliseconds each navigation, wait and capture may take (default: 30000)")
+    .option(`${FLAGS.waitFor} <selector>`, `Wait for the selector to be visible before capturing${byDefault()}`)
     .option(
-      "--wait-until <event>",
+      `${FLAGS.waitUntil} <event>`,
       `Page load event to wait for: load, domcontentloaded or networkidle${byDefault("load")}`,
     )
-    .option("--mask <selector>", `Hide the elements matching the selector. Repeat it to mask more${byDefault()}`)
-    .option("-c, --cookie <cookie>", "Add one or more cookies to the context. Format: key=value;key2=value2");
+    .option(`${FLAGS.mask} <selector>`, `Hide the elements matching the selector. Repeat it to mask more${byDefault()}`)
+    .option(`-c, ${FLAGS.cookie} <cookie>`, "Add one or more cookies to the context. Format: key=value;key2=value2");
 };
 
 type CaptureDefaults = { browsers: string; fromBaseline?: boolean };
@@ -66,20 +75,33 @@ type CaptureDefaults = { browsers: string; fromBaseline?: boolean };
 /** Adds the flags that control output, shared by every command that prints a result. */
 const withOutputOptions = (command: Command) =>
   command
-    .option("-v, --verbose", "Print debug output on stderr")
-    .option("-q, --quiet", "Print no progress on stderr. Errors still print")
-    .option("--json", "Print the result, or the error, as one JSON document on stdout");
+    .option(`-v, ${FLAGS.verbose}`, "Print debug output on stderr")
+    .option(`-q, ${FLAGS.quiet}`, "Print no progress on stderr. Errors still print")
+    .option(FLAGS.json, "Print the result, or the error, as one JSON document on stdout");
 
 /** Adds the flags that decide how pixels are compared, shared by `diff` and `compare`. */
 const withComparisonOptions = (command: Command) =>
   command
-    .option("-t, --threshold <threshold>", "Set the threshold for the diff", {
+    .option(`-t, ${FLAGS.threshold} <threshold>`, "Set the threshold for the diff", {
       default: 0.2,
     })
-    .option("--fail-above <percent>", "Exit with 1 when a browser's pixel change is above this percentage");
+    .option(`${FLAGS.failAbove} <percent>`, "Exit with 1 when a browser's pixel change is above this percentage");
 
 const withBaselineDir = (command: Command) =>
-  command.option("--baseline-dir <dir>", `Folder the baselines are stored in (default: ${DEFAULT_BASELINE_DIR})`);
+  command.option(`${FLAGS.baselineDir} <dir>`, `Folder the baselines are stored in (default: ${DEFAULT_BASELINE_DIR})`);
+
+/** Adds `--folder`, the base folder for run folders. */
+const withFolderOption = (command: Command) =>
+  command.option(`-o, ${FLAGS.folder} <folder>`, "Set the base folder for chromascope runs", {
+    default: "chromascope-runs",
+  });
+
+/** Adds `--folder` and `--out`, which decide where a run writes its artifacts, shared by `diff` and `compare`. */
+const withRunFolderOptions = (command: Command, artifacts: string) =>
+  withFolderOption(command).option(
+    `${FLAGS.out} <dir>`,
+    `Save the ${artifacts} in exactly this folder, without a run folder`,
+  );
 
 const configureOutput = (options: Flags) =>
   output.configure({ verbose: Boolean(options.verbose), quiet: Boolean(options.quiet), json: Boolean(options.json) });
@@ -90,20 +112,37 @@ const printResult = <T extends object>(result: T, plain: (result: T) => string[]
 
 const optionalString = (value: unknown) => (value === undefined ? undefined : String(value));
 
-withComparisonOptions(
-  withOutputOptions(
-    withCaptureOptions(
-      cli.command("diff <url>", "Capture the URL in several browsers and compare each against the base browser"),
-      { browsers: "chromium,webkit,firefox" },
+const parseRunFolderOptions = (options: Flags) => ({
+  folder: String(options.folder),
+  out: optionalString(options.out),
+});
+
+const parseFailAboveOption = (options: Flags) =>
+  options.failAbove === undefined ? null : parseFailAbove(options.failAbove);
+
+/** Exits with 1 when a comparison is above `--fail-above`, unless `passAnyway`. */
+const failAboveExitCode = (aboveFailAbove: boolean, failAbove: number | null, passAnyway = false) => {
+  if (!aboveFailAbove) return EXIT_CODES.ok;
+  output.info(`Pixel change above ${FLAGS.failAbove} ${failAbove}%`);
+  return passAnyway ? EXIT_CODES.ok : EXIT_CODES.aboveFailAbove;
+};
+
+withRunFolderOptions(
+  withComparisonOptions(
+    withOutputOptions(
+      withCaptureOptions(
+        cli.command("diff <url>", "Capture the URL in several browsers and compare each against the base browser"),
+        { browsers: "chromium,webkit,firefox" },
+      ),
     ),
-  ),
+  )
+    .option(`${FLAGS.base} <browser>`, "Browser the others are compared against", { default: "chromium" })
+    .option(
+      `-s, ${FLAGS.saveDiff}`,
+      `Save the screenshots and diffs as png in a new run folder inside ${FLAGS.folder}`,
+    ),
+  "screenshots and diffs as png",
 )
-  .option("--base <browser>", "Browser the others are compared against", { default: "chromium" })
-  .option("-s, --save-diff", "Save the screenshots and diffs as png in a new run folder inside --folder")
-  .option("-o, --folder <folder>", "Set the base folder for chromascope runs", {
-    default: "chromascope-runs",
-  })
-  .option("--out <dir>", "Save the screenshots and diffs as png in exactly this folder, without a run folder")
   .example("  $ chromascope diff localhost:3000")
   .example("  $ chromascope diff localhost:3000/pricing --element .card --browsers chromium,webkit")
   .example("  $ chromascope diff https://example.com --save-diff")
@@ -117,9 +156,8 @@ withComparisonOptions(
       ...parseBase(options.base, capture.browsers),
       verbose: Boolean(options.verbose),
       threshold: parseThreshold(options.threshold),
-      failAbove: options.failAbove === undefined ? null : parseFailAbove(options.failAbove),
-      folder: String(options.folder),
-      out: optionalString(options.out),
+      failAbove: parseFailAboveOption(options),
+      ...parseRunFolderOptions(options),
       saveDiff: Boolean(options.saveDiff),
     });
 
@@ -128,14 +166,10 @@ withComparisonOptions(
     output.debug(`Run ID: ${ctx.runId}`);
     if (ctx.saveArtifacts) output.debug(`Run folder: ${ctx.runFolder}`);
 
-    const result = await diff(normalizedUrl, ctx);
+    const { result, aboveFailAbove } = await diff(normalizedUrl, ctx);
     output.info("Diff complete", "🎉");
     printResult(result, formatDiffPlain, formatDiffDecorated);
-
-    const percentages = result.comparisons.map((comparison) => comparison.pixelChangePercentage);
-    if (!isAboveFailAbove(percentages, ctx.options.failAbove)) return EXIT_CODES.ok;
-    output.info(`Pixel change above --fail-above ${ctx.options.failAbove}%`);
-    return EXIT_CODES.aboveFailAbove;
+    return failAboveExitCode(aboveFailAbove, result.options.failAbove);
   });
 
 withBaselineDir(
@@ -145,7 +179,7 @@ withBaselineDir(
     }),
   ),
 )
-  .option("--name <name>", "Baseline name (default: derived from the URL and --element)")
+  .option(`${FLAGS.name} <name>`, `Baseline name (default: derived from the URL and ${FLAGS.element})`)
   .example("  $ chromascope snapshot localhost:3000/pricing --element .card")
   .example("  $ chromascope snapshot localhost:3000 --browsers chromium,firefox --mask .timestamp")
   .action(async (url: string, options: Flags) => {
@@ -163,26 +197,25 @@ withBaselineDir(
     return EXIT_CODES.ok;
   });
 
-withBaselineDir(
-  withComparisonOptions(
-    withOutputOptions(
-      withCaptureOptions(
-        cli.command("compare [url]", "Capture the URL again and compare each browser against its baseline"),
-        { browsers: "every browser of the baseline", fromBaseline: true },
+withRunFolderOptions(
+  withBaselineDir(
+    withComparisonOptions(
+      withOutputOptions(
+        withCaptureOptions(
+          cli.command("compare [url]", "Capture the URL again and compare each browser against its baseline"),
+          { browsers: "every browser of the baseline", fromBaseline: true },
+        ),
       ),
     ),
-  ),
-)
-  .option(
-    "--name <name>",
-    "Baseline name. Without a URL, the baseline's URL is captured (default: derived from the URL and --element)",
   )
-  .option("--update", "Save the new capture as the baseline after comparing. Always exits with 0")
-  .option("--clean", "Delete the baseline when the comparison exits with 0")
-  .option("-o, --folder <folder>", "Set the base folder for chromascope runs", {
-    default: "chromascope-runs",
-  })
-  .option("--out <dir>", "Save the before, after and diff images in exactly this folder, without a run folder")
+    .option(
+      `${FLAGS.name} <name>`,
+      `Baseline name. Without a URL, the baseline's URL is captured (default: derived from the URL and ${FLAGS.element})`,
+    )
+    .option(FLAGS.update, "Save the new capture as the baseline after comparing. Always exits with 0")
+    .option(FLAGS.clean, "Delete the baseline when the comparison exits with 0"),
+  "before, after and diff images",
+)
   .example("  $ chromascope compare localhost:3000/pricing --element .card --fail-above 0")
   .example("  $ chromascope compare --name homepage --json")
   .example("  $ chromascope compare localhost:3000/pricing --element .card --update")
@@ -191,28 +224,33 @@ withBaselineDir(
     if (url === undefined && options.name === undefined) {
       throw usageError(
         "MISSING_ARGUMENT",
-        "compare needs a URL or --name",
-        "pass the URL you captured the baseline of, or the baseline name with --name",
+        `compare needs a URL or ${FLAGS.name}`,
+        `pass the URL you captured the baseline of, or the baseline name with ${FLAGS.name}`,
       );
     }
     if (options.update && options.clean) {
-      throw usageError("INVALID_OPTION", "--update and --clean can't be used together", "pick one of them");
+      throw usageError(
+        "INVALID_OPTION",
+        `${FLAGS.update} and ${FLAGS.clean} can't be used together`,
+        "pick one of them",
+      );
     }
     const capture = parseCaptureOptions(options, { browsers: ["chromium"] });
     const { result, aboveFailAbove } = await compare(
       {
         url: url === undefined ? null : parseUrl(url),
         name: options.name === undefined ? null : parseBaselineName(options.name),
-        given: parseImageOptions(options),
-        browsers: options.browsers === undefined ? null : capture.browsers,
-        timeout: capture.timeout,
-        cookie: capture.cookie,
+        capture: {
+          imageFlags: parseImageOptions(options),
+          browsers: options.browsers === undefined ? null : capture.browsers,
+          timeout: capture.timeout,
+          cookie: capture.cookie,
+        },
         threshold: parseThreshold(options.threshold),
-        failAbove: options.failAbove === undefined ? null : parseFailAbove(options.failAbove),
+        failAbove: parseFailAboveOption(options),
         update: Boolean(options.update),
         clean: Boolean(options.clean),
-        folder: String(options.folder),
-        out: optionalString(options.out),
+        run: parseRunFolderOptions(options),
         baselineDir: optionalString(options.baselineDir),
       },
       createBaselineStore(optionalString(options.baselineDir)),
@@ -222,10 +260,7 @@ withBaselineDir(
     if (result.updated) output.info(`Updated baseline ${JSON.stringify(result.name)}`);
     if (result.cleaned) output.info(`Deleted baseline ${JSON.stringify(result.name)}`);
     printResult(result, formatComparePlain, formatCompareDecorated);
-
-    if (!aboveFailAbove) return EXIT_CODES.ok;
-    output.info(`Pixel change above --fail-above ${result.options.failAbove}%`);
-    return result.updated ? EXIT_CODES.ok : EXIT_CODES.aboveFailAbove;
+    return failAboveExitCode(aboveFailAbove, result.options.failAbove, result.updated);
   });
 
 withBaselineDir(
@@ -239,13 +274,11 @@ withBaselineDir(
   return EXIT_CODES.ok;
 });
 
-withOutputOptions(
-  cli.command("doctor", "Check that Node, the browsers and the output folder are ready for chromascope"),
+withFolderOption(
+  withOutputOptions(
+    cli.command("doctor", "Check that Node, the browsers and the output folder are ready for chromascope"),
+  ).option(`${FLAGS.browsers} <list>`, `Comma separated browsers to check (default: ${BROWSERS.join(",")})`),
 )
-  .option("--browsers <list>", `Comma separated browsers to check (default: ${BROWSERS.join(",")})`)
-  .option("-o, --folder <folder>", "Set the base folder for chromascope runs", {
-    default: "chromascope-runs",
-  })
   .example("  $ chromascope doctor")
   .example("  $ chromascope doctor --browsers chromium --json")
   .action(async (options: Flags) => {
@@ -282,12 +315,7 @@ cli.help((sections) => [
   },
   {
     title: "Error codes",
-    body: [
-      "  Usage (exit 2):   INVALID_URL, INVALID_OPTION, INVALID_ARGUMENT, MISSING_ARGUMENT, UNKNOWN_COMMAND,",
-      "                    INVALID_SELECTOR, CAPTURE_OPTION_CONFLICT",
-      "  Runtime (exit 3): BROWSER_NOT_INSTALLED, NAVIGATION_FAILED, SELECTOR_TIMEOUT, BASELINE_NOT_FOUND,",
-      "                    BASELINE_INVALID, UNKNOWN_ERROR",
-    ].join("\n"),
+    body: formatErrorCodes().join("\n"),
   },
 ]);
 cli.version(version);
@@ -313,8 +341,8 @@ const run = async (): Promise<number> => {
 const handleError = (thrown: unknown) => {
   const error = toChromascopeError(thrown);
   // Parsing may fail before a command configured the output, so look for the flags directly.
-  if (process.argv.includes("--json")) output.configure({ json: true });
-  if (process.argv.includes("--verbose")) output.configure({ verbose: true });
+  if (process.argv.includes(FLAGS.json)) output.configure({ json: true });
+  if (process.argv.includes(FLAGS.verbose)) output.configure({ verbose: true });
   if (output.json) output.result(formatJson(toErrorResult(error)));
   output.error(formatError(error).join("\n"));
   output.debug(error.cause ?? error);

@@ -1,9 +1,9 @@
 import pixelmatch from "pixelmatch";
 import { PNG, type PNGWithMetadata } from "pngjs";
+import type { Size } from "./capture-options";
 import output from "./output";
 
 export type ImageWithMetadata = Pick<PNGWithMetadata, "data" | "width" | "height">;
-type Size = { width: number; height: number };
 
 export type ComparisonResult = {
   pixelChange: number;

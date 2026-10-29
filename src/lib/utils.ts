@@ -1,4 +1,5 @@
 import { usageError } from "./errors";
+import { FLAGS } from "./flags";
 
 // A scheme followed by a digit is a host and port, like `localhost:3000`.
 const schemeRegex = /^[a-z][a-z\d+.-]*:(?!\d)/i;
@@ -46,33 +47,37 @@ export const parseCookieOptions = (cookies: string, url: string) => {
   return parsedCookies;
 };
 
-export const parseThreshold = (value: unknown) => {
-  const threshold = typeof value === "string" && value.trim() !== "" ? Number(value) : value;
-  if (typeof threshold !== "number" || !(threshold >= 0 && threshold <= 1)) {
-    throw usageError(
-      "INVALID_OPTION",
-      `--threshold must be a number between 0 and 1, got ${JSON.stringify(value)}`,
-      "pass a number between 0 and 1, like --threshold 0.1",
-    );
+/**
+ * Parses a number option, which arrives as a number or a string depending on how the CLI parser read it.
+ * Fails with "<expected>, got <value>" when it isn't a number or `isValid` rejects it.
+ */
+export const parseNumber = (value: unknown, isValid: (number: number) => boolean, expected: string, hint: string) => {
+  const number = typeof value === "string" && value.trim() !== "" ? Number(value) : value;
+  if (typeof number !== "number" || !isValid(number)) {
+    throw usageError("INVALID_OPTION", `${expected}, got ${JSON.stringify(value)}`, hint);
   }
-  return threshold;
+  return number;
 };
 
-export const parseFailAbove = (value: unknown) => {
-  const percent = typeof value === "string" && value.trim() !== "" ? Number(value) : value;
-  if (typeof percent !== "number" || !(percent >= 0 && percent <= 100)) {
-    throw usageError(
-      "INVALID_OPTION",
-      `--fail-above must be a percentage between 0 and 100, got ${JSON.stringify(value)}`,
-      "pass the highest pixel change percentage that still passes, like --fail-above 0.5",
-    );
-  }
-  return percent;
-};
+export const parseThreshold = (value: unknown) =>
+  parseNumber(
+    value,
+    (threshold) => threshold >= 0 && threshold <= 1,
+    `${FLAGS.threshold} must be a number between 0 and 1`,
+    `pass a number between 0 and 1, like ${FLAGS.threshold} 0.1`,
+  );
 
-/** Whether any pixel change percentage is above `--fail-above`. Never true without `--fail-above`. */
-export const isAboveFailAbove = (percentages: number[], failAbove: number | null) =>
-  failAbove !== null && percentages.some((percentage) => percentage > failAbove);
+export const parseFailAbove = (value: unknown) =>
+  parseNumber(
+    value,
+    (percent) => percent >= 0 && percent <= 100,
+    `${FLAGS.failAbove} must be a percentage between 0 and 100`,
+    `pass the highest pixel change percentage that still passes, like ${FLAGS.failAbove} 0.5`,
+  );
+
+/** Whether any comparison's pixel change percentage is above `--fail-above`. Never true without `--fail-above`. */
+export const exceedsFailAbove = (comparisons: Array<{ pixelChangePercentage: number }>, failAbove: number | null) =>
+  failAbove !== null && comparisons.some(({ pixelChangePercentage }) => pixelChangePercentage > failAbove);
 
 /** Parses the URL argument, adding a scheme when it has none. */
 export const parseUrl = (value: unknown) => {

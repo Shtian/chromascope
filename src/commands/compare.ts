@@ -1,34 +1,37 @@
 import fs from "node:fs";
-import path from "node:path";
 import { version } from "../../package.json";
-import { createRunId } from "../context";
+import { type RunFolderOptions, resolveRun } from "../context";
 import { type BaselineStore, deriveBaselineName } from "../lib/baselines";
 import { compareWithBaseline, planComparison, shouldClean, updatedBaseline } from "../lib/before-after";
 import { captureAll } from "../lib/capture";
 import type { BrowserName, ImageOptions } from "../lib/capture-options";
 import output from "../lib/output";
-import { type CompareResult, SCHEMA_VERSION } from "../lib/result";
+import { byBrowser, type CompareResult, SCHEMA_VERSION, timingsOf } from "../lib/result";
 import { createRunFolder } from "../lib/run-folder";
-import { isAboveFailAbove } from "../lib/utils";
+import { exceedsFailAbove } from "../lib/utils";
 
-export type CompareOptions = {
-  /** The URL to capture. Defaults to the baseline's URL. */
-  url: string | null;
-  /** The baseline name. Derived from the URL and element when not given. */
-  name: string | null;
-  /** The image options that were given. Each must match the baseline's, unless `update` is set. */
-  given: Partial<ImageOptions>;
-  /** The browsers to compare. Defaults to every browser of the baseline. */
+/** The capture options passed to `compare`. The image options and browsers that weren't passed come from the baseline. */
+export type CompareCaptureOptions = {
+  /** The image options passed as flags. Each must match the baseline's, unless `update` is set. */
+  imageFlags: Partial<ImageOptions>;
+  /** The browsers to compare, or `null` for every browser of the baseline. */
   browsers: BrowserName[] | null;
   timeout: number;
   cookie: string;
+};
+
+export type CompareOptions = {
+  /** The URL to capture, or `null` for the baseline's URL. */
+  url: string | null;
+  /** The baseline name, or `null` to derive it from the URL and element. */
+  name: string | null;
+  capture: CompareCaptureOptions;
   threshold: number;
   failAbove: number | null;
   update: boolean;
   clean: boolean;
-  folder: string;
-  out?: string;
-  /** `--baseline-dir` as given, for the hint when the baseline is missing. */
+  run: RunFolderOptions;
+  /** `--baseline-dir` as given, for the snapshot command in the error when the baseline is missing. */
   baselineDir?: string;
 };
 
@@ -38,31 +41,26 @@ export type CompareOptions = {
  */
 export const compare = async (options: CompareOptions, store: BaselineStore) => {
   const started = performance.now();
-  const name = options.name ?? deriveBaselineName(options.url ?? "", options.given.element ?? null);
+  const { imageFlags, browsers: browsersFlag, timeout, cookie } = options.capture;
+  const name = options.name ?? deriveBaselineName(options.url ?? "", imageFlags.element ?? null);
   const { baseline, url, capture, browsers, conflicts } = planComparison({
     name,
     root: store.root,
     baseline: store.read(name),
     url: options.url,
     nameGiven: options.name !== null,
-    given: options.given,
-    browsers: options.browsers,
+    imageFlags,
+    browsers: browsersFlag,
     update: options.update,
     baselineDir: options.baselineDir,
   });
   const { dir, metadata, imagePath } = baseline;
 
-  const runId = createRunId();
-  const runFolder = path.resolve(options.out ?? path.join(options.folder, runId));
-  createRunFolder({ runFolder, options });
+  const { runId, runFolder } = resolveRun(options.run);
+  createRunFolder({ runFolder, options: options.run });
   output.debug(`Comparing ${url} against baseline ${dir}, run folder: ${runFolder}`);
 
-  const captures = await captureAll(browsers, url, {
-    ...capture,
-    browsers,
-    timeout: options.timeout,
-    cookie: options.cookie,
-  });
+  const captures = await captureAll(browsers, url, { ...capture, browsers, timeout, cookie });
 
   const comparisons = captures.map(({ browser, image }) => {
     const { comparison, files } = compareWithBaseline(
@@ -75,10 +73,7 @@ export const compare = async (options: CompareOptions, store: BaselineStore) => 
     for (const [file, data] of files) fs.writeFileSync(file, data);
     return comparison;
   });
-  const aboveFailAbove = isAboveFailAbove(
-    comparisons.map((comparison) => comparison.pixelChangePercentage),
-    options.failAbove,
-  );
+  const aboveFailAbove = exceedsFailAbove(comparisons, options.failAbove);
 
   if (options.update) {
     const updated = updatedBaseline({
@@ -90,10 +85,10 @@ export const compare = async (options: CompareOptions, store: BaselineStore) => 
       capturedAt: new Date().toISOString(),
       chromascopeVersion: version,
     });
-    const images = Object.fromEntries([
-      ...updated.kept.map((browser) => [browser, fs.readFileSync(imagePath(browser))] as const),
-      ...captures.map(({ browser, image }) => [browser, image] as const),
-    ]);
+    const images = {
+      ...Object.fromEntries(updated.kept.map((browser) => [browser, fs.readFileSync(imagePath(browser))])),
+      ...byBrowser(captures, ({ image }) => image),
+    };
     store.write(name, updated.metadata, images);
   }
   const cleaned = shouldClean({ ...options, aboveFailAbove }) && store.remove(name) !== null;
@@ -105,21 +100,12 @@ export const compare = async (options: CompareOptions, store: BaselineStore) => 
     name,
     baselineDir: dir,
     url,
-    options: {
-      ...capture,
-      browsers,
-      threshold: options.threshold,
-      failAbove: options.failAbove,
-      timeout: options.timeout,
-    },
+    options: { ...capture, browsers, threshold: options.threshold, failAbove: options.failAbove, timeout },
     artifactsDir: runFolder,
     comparisons,
     updated: options.update,
     cleaned,
-    timings: {
-      totalMs: Math.round(performance.now() - started),
-      captureMs: Object.fromEntries(captures.map(({ browser, ms }) => [browser, ms])),
-    },
+    timings: timingsOf(started, captures),
   };
   return { result, aboveFailAbove };
 };

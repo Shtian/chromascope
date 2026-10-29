@@ -51,7 +51,7 @@ describe("diff", () => {
       saveDiff: false,
       ...options,
     });
-    const pending = diff(server.url, ctx);
+    const pending = diff(server.url, ctx).then(({ result }) => result);
     return { ctx, pending, result: pending.then((run) => run.comparisons) };
   };
 

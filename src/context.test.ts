@@ -1,6 +1,6 @@
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { type ChromascopeOptions, createChromascopeContext, createRunId } from "./context";
+import { type ChromascopeOptions, createChromascopeContext, createRunId, resolveRun } from "./context";
 import { parseCaptureOptions } from "./lib/capture-options";
 
 const options: ChromascopeOptions = {
@@ -26,6 +26,21 @@ describe("createRunId", () => {
     const now = new Date(2026, 9, 28, 16, 3, 12);
     const ids = Array.from({ length: 1000 }, () => createRunId(now));
     expect(new Set(ids).size).toBe(ids.length);
+  });
+});
+
+describe("resolveRun", () => {
+  it("should put the run folder inside --folder, named after the run ID", () => {
+    const { runId, runFolder } = resolveRun({ folder: "runs" });
+    expect(runFolder).toBe(path.resolve("runs", runId));
+  });
+
+  it("should use --out as the run folder, as an absolute path", () => {
+    expect(resolveRun({ folder: "runs", out: "artifacts" }).runFolder).toBe(path.resolve("artifacts"));
+  });
+
+  it("should give every run its own ID", () => {
+    expect(resolveRun({ folder: "runs" }).runId).not.toBe(resolveRun({ folder: "runs" }).runId);
   });
 });
 

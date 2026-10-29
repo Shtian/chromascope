@@ -2,17 +2,19 @@ import crypto from "node:crypto";
 import path from "node:path";
 import type { BrowserName, CaptureOptions } from "./lib/capture-options";
 
-export type ChromascopeOptions = CaptureOptions & {
-  /** The browser every other browser is compared against. Always the first of `browsers`. */
-  base: BrowserName;
-  verbose: boolean;
-  threshold: number;
-  /** Exit `1` when a comparison's pixel change percentage is above this. `null` never fails. */
-  failAbove: number | null;
-  folder: string;
-  out?: string;
-  saveDiff: boolean;
-};
+/** Where a run writes its artifacts: a new run folder inside `folder`, or exactly `out`. */
+export type RunFolderOptions = { folder: string; out?: string };
+
+export type ChromascopeOptions = CaptureOptions &
+  RunFolderOptions & {
+    /** The browser every other browser is compared against. Always the first of `browsers`. */
+    base: BrowserName;
+    verbose: boolean;
+    threshold: number;
+    /** Exit `1` when a comparison's pixel change percentage is above this. `null` never fails. */
+    failAbove: number | null;
+    saveDiff: boolean;
+  };
 
 export type ChromascopeContext = {
   runId: string;
@@ -23,9 +25,14 @@ export type ChromascopeContext = {
   options: ChromascopeOptions;
 };
 
-export function createChromascopeContext(options: ChromascopeOptions) {
+/** A new run ID and the absolute path of the run's folder, without creating it: `--out`, or a folder named after the run ID in `--folder`. */
+export const resolveRun = ({ folder, out }: RunFolderOptions) => {
   const runId = createRunId();
-  const runFolder = options.out ? path.resolve(options.out) : path.resolve(options.folder, runId);
+  return { runId, runFolder: out ? path.resolve(out) : path.resolve(folder, runId) };
+};
+
+export function createChromascopeContext(options: ChromascopeOptions) {
+  const { runId, runFolder } = resolveRun(options);
   const ctx: ChromascopeContext = {
     runId,
     runFolder,

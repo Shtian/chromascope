@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
-  isAboveFailAbove,
+  exceedsFailAbove,
   isLoopbackHost,
   isUrl,
   normalizeUrl,
   parseCookieOptions,
   parseFailAbove,
+  parseNumber,
   parseThreshold,
   parseUrl,
 } from "./utils";
@@ -154,6 +155,25 @@ describe("parseCookieOptions", () => {
   });
 });
 
+describe("parseNumber", () => {
+  const isPositive = (number: number) => number > 0;
+  const parse = (value: unknown) => parseNumber(value, isPositive, "--size must be above 0", "pass --size 1");
+
+  it.each([1, 2.5, "3", " 4 "])("should accept the number or numeric string %j", (value) => {
+    expect(parse(value)).toBe(Number(value));
+  });
+  it.each(["abc", "", " ", 0, "-1", Number.NaN, true, null, undefined])("should reject %j", (value) => {
+    expect(() => parse(value)).toThrow(
+      expect.objectContaining({
+        code: "INVALID_OPTION",
+        category: "usage",
+        message: `--size must be above 0, got ${JSON.stringify(value)}`,
+        hint: "pass --size 1",
+      }),
+    );
+  });
+});
+
 describe("parseThreshold", () => {
   it.each([0, 0.2, 1, "0", "0.5", "1"])("should accept %j", (value) => {
     expect(parseThreshold(value)).toBe(Number(value));
@@ -184,17 +204,19 @@ describe("parseFailAbove", () => {
   });
 });
 
-describe("isAboveFailAbove", () => {
+describe("exceedsFailAbove", () => {
+  const changes = (...percentages: number[]) => percentages.map((pixelChangePercentage) => ({ pixelChangePercentage }));
+
   it("should never fail without --fail-above", () => {
-    expect(isAboveFailAbove([100], null)).toBe(false);
+    expect(exceedsFailAbove(changes(100), null)).toBe(false);
   });
-  it("should fail when any percentage is above --fail-above", () => {
-    expect(isAboveFailAbove([0, 0.6], 0.5)).toBe(true);
-    expect(isAboveFailAbove([0.01], 0)).toBe(true);
+  it("should fail when any pixel change percentage is above --fail-above", () => {
+    expect(exceedsFailAbove(changes(0, 0.6), 0.5)).toBe(true);
+    expect(exceedsFailAbove(changes(0.01), 0)).toBe(true);
   });
-  it("should pass when every percentage is at or below --fail-above", () => {
-    expect(isAboveFailAbove([0, 0.5], 0.5)).toBe(false);
-    expect(isAboveFailAbove([], 0)).toBe(false);
+  it("should pass when every pixel change percentage is at or below --fail-above", () => {
+    expect(exceedsFailAbove(changes(0, 0.5), 0.5)).toBe(false);
+    expect(exceedsFailAbove([], 0)).toBe(false);
   });
 });
 

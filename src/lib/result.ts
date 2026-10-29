@@ -1,10 +1,42 @@
-import type { BrowserName, ImageOptions } from "./capture-options";
+import type { BrowserName, ImageOptions, Size } from "./capture-options";
+import type { ErrorCode } from "./error-codes";
 
 /**
  * Version of the `--json` document. Adding fields doesn't change it.
  * Renaming or removing fields bumps it, and needs a major release.
  */
 export const SCHEMA_VERSION = 1;
+
+/** The capture options a result records: the image options, the browsers and the timeout. */
+export type CapturedOptions = ImageOptions & { browsers: BrowserName[]; timeout: number };
+
+/** The options a comparison result records: the capture options and how pixels were compared. */
+export type ComparedOptions = CapturedOptions & {
+  threshold: number;
+  /** The `--fail-above` percentage, or `null` when not given. */
+  failAbove: number | null;
+};
+
+export type Timings = {
+  /** Milliseconds the whole command took. */
+  totalMs: number;
+  /** Milliseconds each browser's capture took. */
+  captureMs: Partial<Record<BrowserName, number>>;
+};
+
+/** A value per item, keyed by the item's browser, in the items' order. */
+export const byBrowser = <Item extends { browser: BrowserName }, Value>(
+  items: Item[],
+  value: (item: Item) => Value,
+): Partial<Record<BrowserName, Value>> =>
+  Object.fromEntries(items.map((item) => [item.browser, value(item)])) as Partial<Record<BrowserName, Value>>;
+
+/** The time since `started`, and each browser's capture time. */
+export const timingsOf = (
+  started: number,
+  captures: Array<{ browser: BrowserName; ms: number }>,
+  now: number = performance.now(),
+): Timings => ({ totalMs: Math.round(now - started), captureMs: byBrowser(captures, ({ ms }) => ms) });
 
 /** One browser compared against the base browser in a cross-browser diff. */
 export type DiffComparison = {
@@ -25,28 +57,20 @@ export type DiffResult = {
   runId: string;
   url: string;
   base: BrowserName;
-  options: ImageOptions & {
-    browsers: BrowserName[];
-    threshold: number;
-    /** The `--fail-above` percentage, or `null` when not given. */
-    failAbove: number | null;
-    timeout: number;
-  };
+  options: ComparedOptions;
   /** Absolute path of the folder with the screenshots and diffs, or `null` when artifacts weren't saved. */
   artifactsDir: string | null;
   /** Absolute path of each browser's screenshot, or `null` when artifacts weren't saved. */
   screenshots: Partial<Record<BrowserName, string | null>>;
   comparisons: DiffComparison[];
-  timings: { totalMs: number; captureMs: Partial<Record<BrowserName, number>> };
+  timings: Timings;
 };
 
 /** What `--json` prints when a command fails. */
 export type ErrorResult = {
   schemaVersion: typeof SCHEMA_VERSION;
-  error: { code: string; message: string; hint: string };
+  error: { code: ErrorCode; message: string; hint: string };
 };
-
-export type Size = { width: number; height: number };
 
 /** One browser's capture compared against its own baseline. */
 export type CompareComparison = {
@@ -74,12 +98,7 @@ export type CompareResult = {
   /** Absolute path of the folder with this name's baselines. */
   baselineDir: string;
   url: string;
-  options: ImageOptions & {
-    browsers: BrowserName[];
-    threshold: number;
-    failAbove: number | null;
-    timeout: number;
-  };
+  options: ComparedOptions;
   /** Absolute path of the run folder with the before, after and diff images. */
   artifactsDir: string;
   comparisons: CompareComparison[];
@@ -87,7 +106,7 @@ export type CompareResult = {
   updated: boolean;
   /** Whether `--clean` deleted the baseline after the comparison passed. */
   cleaned: boolean;
-  timings: { totalMs: number; captureMs: Partial<Record<BrowserName, number>> };
+  timings: Timings;
 };
 
 /** The result of `chromascope snapshot`, as printed by `--json`. */
@@ -99,11 +118,11 @@ export type SnapshotResult = {
   /** Absolute path of the folder with this name's baselines. */
   baselineDir: string;
   url: string;
-  options: ImageOptions & { browsers: BrowserName[]; timeout: number };
+  options: CapturedOptions;
   /** Absolute path of each browser's baseline image. */
   baselines: Partial<Record<BrowserName, string>>;
   capturedAt: string;
-  timings: { totalMs: number; captureMs: Partial<Record<BrowserName, number>> };
+  timings: Timings;
 };
 
 /** One check of `chromascope doctor`. */

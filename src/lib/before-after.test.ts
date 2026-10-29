@@ -31,7 +31,7 @@ const plan = (overrides: Partial<PlanComparisonInput<ReturnType<typeof stored>>>
     baseline: stored(),
     url: null,
     nameGiven: true,
-    given: {},
+    imageFlags: {},
     browsers: null,
     update: false,
     ...overrides,
@@ -54,7 +54,7 @@ describe("planComparison", () => {
       plan({
         url: "http://localhost:4000/",
         browsers: ["firefox"],
-        given: { element: "#box", viewport: { width: 1280, height: 720 } },
+        imageFlags: { element: "#box", viewport: { width: 1280, height: 720 } },
       }),
     ).toMatchObject({ url: "http://localhost:4000/", capture: metadata.capture, browsers: ["firefox"], conflicts: [] });
   });
@@ -77,7 +77,12 @@ describe("planComparison", () => {
         nameGiven: false,
         url: "http://127.0.0.1:3000/",
         browsers: ["firefox"],
-        given: { element: "#box", viewport: { width: 400, height: 300 }, mask: ["#clock", ".a b"], fullPage: true },
+        imageFlags: {
+          element: "#box",
+          viewport: { width: 400, height: 300 },
+          mask: ["#clock", ".a b"],
+          fullPage: true,
+        },
         baselineDir: "my baselines",
       }),
     ).toThrow(
@@ -88,16 +93,16 @@ describe("planComparison", () => {
   });
 
   it("should fail on a capture option that differs from the baseline's", () => {
-    expect(() => plan({ given: { viewport: { width: 800, height: 600 } } })).toThrow(
+    expect(() => plan({ imageFlags: { viewport: { width: 800, height: 600 } } })).toThrow(
       expect.objectContaining({ code: "CAPTURE_OPTION_CONFLICT" }),
     );
   });
 
   it("should accept a differing capture option with --update, and report the conflict", () => {
-    const { capture, conflicts } = plan({ given: { viewport: { width: 800, height: 600 } }, update: true });
+    const { capture, conflicts } = plan({ imageFlags: { viewport: { width: 800, height: 600 } }, update: true });
     expect(capture.viewport).toEqual({ width: 800, height: 600 });
     expect(capture.element).toBe("#box");
-    expect(conflicts).toEqual([{ flag: "--viewport", given: "800x600", stored: "1280x720" }]);
+    expect(conflicts).toEqual([{ flag: "--viewport", flagValue: "800x600", baselineValue: "1280x720" }]);
   });
 
   it("should fail for a browser without a baseline, with the snapshot command that recaptures it the same way", () => {
@@ -119,7 +124,7 @@ describe("planComparison", () => {
   });
 
   it("should name the baseline in the snapshot command when the stored options derive another name", () => {
-    const hint = (name: string) => {
+    const snapshotHint = (name: string) => {
       try {
         plan({ name, nameGiven: false, url: "http://localhost:3000/", browsers: ["webkit"] });
       } catch (error) {
@@ -127,8 +132,8 @@ describe("planComparison", () => {
       }
     };
     // The baseline has `--element #box`, so the URL and element derive `localhost-3000__box`.
-    expect(hint("localhost-3000__box")).not.toContain("--name");
-    expect(hint("localhost-3000")).toContain("--name localhost-3000 ");
+    expect(snapshotHint("localhost-3000__box")).not.toContain("--name");
+    expect(snapshotHint("localhost-3000")).toContain("--name localhost-3000 ");
   });
 });
 

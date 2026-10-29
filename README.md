@@ -210,7 +210,7 @@ import type { CompareResult, DiffResult, ErrorResult } from "chromascope";
 const result: DiffResult | ErrorResult = JSON.parse(stdout);
 ```
 
-It exports `DiffResult`, `CompareResult`, `SnapshotResult`, `CleanResult`, `DoctorResult` and `ErrorResult`, the per-browser `DiffComparison` and `CompareComparison`, the per-check `DoctorCheck`, and `SchemaVersion`, `BrowserName`, `ImageOptions`, `Viewport`, `WaitUntil` and `Size`.
+It exports `DiffResult`, `CompareResult`, `SnapshotResult`, `CleanResult`, `DoctorResult` and `ErrorResult`, the per-browser `DiffComparison` and `CompareComparison`, the per-check `DoctorCheck`, the shared `CapturedOptions`, `ComparedOptions` and `Timings`, and `SchemaVersion`, `ErrorCode`, `BrowserName`, `ImageOptions`, `WaitUntil` and `Size`. `Viewport` is a deprecated alias of `Size`.
 
 #### Exit codes and errors
 

@@ -1,4 +1,6 @@
 import { usageError } from "./errors";
+import { FLAGS } from "./flags";
+import { parseNumber } from "./utils";
 
 export const BROWSERS = ["chromium", "webkit", "firefox"] as const;
 export type BrowserName = (typeof BROWSERS)[number];
@@ -6,11 +8,15 @@ export type BrowserName = (typeof BROWSERS)[number];
 export const WAIT_UNTIL = ["load", "domcontentloaded", "networkidle"] as const;
 export type WaitUntil = (typeof WAIT_UNTIL)[number];
 
-export type Viewport = { width: number; height: number };
+/** A width and height in pixels: of a viewport, a captured image or a compared canvas. */
+export type Size = { width: number; height: number };
+
+/** @deprecated Use `Size`. */
+export type Viewport = Size;
 
 /** The capture options that change the captured image. */
 export type ImageOptions = {
-  viewport: Viewport;
+  viewport: Size;
   deviceScaleFactor: number;
   /** Capture only the first element matching this selector, instead of the viewport. */
   element: string | null;
@@ -55,8 +61,8 @@ export const parseBrowsers = (value: unknown): BrowserName[] => {
   const names = typeof list === "string" ? list.split(",").map((name) => name.trim().toLowerCase()) : [];
   if (names.length === 0 || !names.every(isBrowserName)) {
     throw invalidOption(
-      `--browsers must be a comma separated list of ${BROWSERS.join(", ")}, got ${JSON.stringify(value)}`,
-      "pass a comma separated list, like --browsers chromium,firefox",
+      `${FLAGS.browsers} must be a comma separated list of ${BROWSERS.join(", ")}, got ${JSON.stringify(value)}`,
+      `pass a comma separated list, like ${FLAGS.browsers} chromium,firefox`,
     );
   }
   return [...new Set(names)];
@@ -67,15 +73,15 @@ export const parseBase = (value: unknown, browsers: BrowserName[]): { base: Brow
   const base = typeof value === "string" ? value.trim().toLowerCase() : "";
   if (!isBrowserName(base)) {
     throw invalidOption(
-      `--base must be one of ${BROWSERS.join(", ")}, got ${JSON.stringify(value)}`,
+      `${FLAGS.base} must be one of ${BROWSERS.join(", ")}, got ${JSON.stringify(value)}`,
       `pass one of ${BROWSERS.join(", ")}`,
     );
   }
   const others = browsers.filter((browser) => browser !== base);
   if (others.length === 0) {
     throw invalidOption(
-      `diff needs at least one browser besides the base, got --browsers ${browsers.join(",")}`,
-      "add another browser to --browsers, or pick another --base",
+      `diff needs at least one browser besides the base, got ${FLAGS.browsers} ${browsers.join(",")}`,
+      `add another browser to ${FLAGS.browsers}, or pick another ${FLAGS.base}`,
     );
   }
   return { base, browsers: [base, ...others] };
@@ -83,48 +89,39 @@ export const parseBase = (value: unknown, browsers: BrowserName[]): { base: Brow
 
 const viewportRegex = /^(\d+)x(\d+)$/i;
 
-export const parseViewport = (value: unknown): Viewport => {
+export const parseViewport = (value: unknown): Size => {
   const match = typeof value === "string" ? viewportRegex.exec(value.trim()) : null;
   const width = Number(match?.[1]);
   const height = Number(match?.[2]);
   if (!match || width === 0 || height === 0) {
     throw invalidOption(
-      `--viewport must be <width>x<height>, like 1280x720, got ${JSON.stringify(value)}`,
-      "pass the size as <width>x<height>, like --viewport 1280x720",
+      `${FLAGS.viewport} must be <width>x<height>, like 1280x720, got ${JSON.stringify(value)}`,
+      `pass the size as <width>x<height>, like ${FLAGS.viewport} 1280x720`,
     );
   }
   return { width, height };
 };
 
-/** Numbers arrive as numbers or strings, depending on how the CLI parser read them. */
-const toNumber = (value: unknown) => (typeof value === "string" && value.trim() !== "" ? Number(value) : value);
+export const parseDeviceScaleFactor = (value: unknown): number =>
+  parseNumber(
+    value,
+    (factor) => factor > 0,
+    `${FLAGS.deviceScaleFactor} must be a number above 0`,
+    `pass a number above 0, like ${FLAGS.deviceScaleFactor} 2`,
+  );
 
-export const parseDeviceScaleFactor = (value: unknown): number => {
-  const factor = toNumber(value);
-  if (typeof factor !== "number" || !(factor > 0)) {
-    throw invalidOption(
-      `--device-scale-factor must be a number above 0, got ${JSON.stringify(value)}`,
-      "pass a number above 0, like --device-scale-factor 2",
-    );
-  }
-  return factor;
-};
-
-export const parseTimeout = (value: unknown): number => {
-  const timeout = toNumber(value);
-  if (typeof timeout !== "number" || !Number.isInteger(timeout) || timeout < 0) {
-    throw invalidOption(
-      `--timeout must be a whole number of milliseconds, got ${JSON.stringify(value)}`,
-      "pass milliseconds, like --timeout 5000, or 0 for no limit",
-    );
-  }
-  return timeout;
-};
+export const parseTimeout = (value: unknown): number =>
+  parseNumber(
+    value,
+    (timeout) => Number.isInteger(timeout) && timeout >= 0,
+    `${FLAGS.timeout} must be a whole number of milliseconds`,
+    `pass milliseconds, like ${FLAGS.timeout} 5000, or 0 for no limit`,
+  );
 
 export const parseWaitUntil = (value: unknown): WaitUntil => {
   if (!(WAIT_UNTIL as readonly unknown[]).includes(value)) {
     throw invalidOption(
-      `--wait-until must be one of ${WAIT_UNTIL.join(", ")}, got ${JSON.stringify(value)}`,
+      `${FLAGS.waitUntil} must be one of ${WAIT_UNTIL.join(", ")}, got ${JSON.stringify(value)}`,
       `pass one of ${WAIT_UNTIL.join(", ")}`,
     );
   }
@@ -148,13 +145,15 @@ export const parseImageOptions = (flags: CaptureFlags): Partial<ImageOptions> =>
   if (flags.deviceScaleFactor !== undefined) {
     options.deviceScaleFactor = parseDeviceScaleFactor(flags.deviceScaleFactor);
   }
-  if (flags.element !== undefined) options.element = parseSelector("--element", flags.element);
+  if (flags.element !== undefined) options.element = parseSelector(FLAGS.element, flags.element);
   if (flags.fullPage !== undefined) options.fullPage = Boolean(flags.fullPage);
-  if (flags.waitFor !== undefined) options.waitFor = parseSelector("--wait-for", flags.waitFor);
+  if (flags.waitFor !== undefined) options.waitFor = parseSelector(FLAGS.waitFor, flags.waitFor);
   if (flags.waitUntil !== undefined) options.waitUntil = parseWaitUntil(flags.waitUntil);
   if (flags.mask !== undefined) {
     // A repeated flag arrives as an array.
-    options.mask = (Array.isArray(flags.mask) ? flags.mask : [flags.mask]).map((mask) => parseSelector("--mask", mask));
+    options.mask = (Array.isArray(flags.mask) ? flags.mask : [flags.mask]).map((mask) =>
+      parseSelector(FLAGS.mask, mask),
+    );
   }
   return options;
 };

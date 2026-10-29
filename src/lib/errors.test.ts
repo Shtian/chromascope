@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
+import { ERROR_CODES } from "./error-codes";
 import {
   ChromascopeError,
   EXIT_CODES,
   exitCodeFor,
   formatError,
+  formatErrorCodes,
   navigationError,
   runtimeError,
   selectorError,
@@ -115,5 +117,21 @@ describe("toErrorResult", () => {
       schemaVersion: 1,
       error: { code: "INVALID_URL", message: "Invalid URL", hint: "Pass an http(s) URL" },
     });
+  });
+});
+
+describe("formatErrorCodes", () => {
+  it("should list every code under its exit code, wrapped like the rest of the help", () => {
+    expect(formatErrorCodes()).toEqual([
+      "  Usage (exit 2):   INVALID_URL, INVALID_OPTION, INVALID_ARGUMENT, MISSING_ARGUMENT, UNKNOWN_COMMAND,",
+      "                    INVALID_SELECTOR, CAPTURE_OPTION_CONFLICT",
+      "  Runtime (exit 3): BROWSER_NOT_INSTALLED, NAVIGATION_FAILED, SELECTOR_TIMEOUT, BASELINE_NOT_FOUND,",
+      "                    BASELINE_INVALID, UNKNOWN_ERROR",
+    ]);
+  });
+
+  it("should list each code once", () => {
+    const codes = [...ERROR_CODES.usage, ...ERROR_CODES.runtime];
+    expect(new Set(codes).size).toBe(codes.length);
   });
 });
