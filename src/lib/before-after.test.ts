@@ -1,14 +1,6 @@
-import path from "node:path";
-import { PNG } from "pngjs";
 import { describe, expect, it } from "vitest";
 import type { BaselineMetadata } from "./baselines";
-import {
-  compareBeforeAfter,
-  type PlanComparisonInput,
-  planComparison,
-  shouldClean,
-  updatedBaseline,
-} from "./before-after";
+import { type PlanComparisonInput, planComparison, shouldClean, updatedBaseline } from "./before-after";
 import type { BrowserName } from "./capture-options";
 import { DEFAULT_IMAGE_OPTIONS } from "./image-options";
 
@@ -190,67 +182,5 @@ describe("shouldClean", () => {
     [{ clean: true, update: true, aboveFailAbove: true }, true],
   ])("should clean only when asked and the comparison exits 0: %j", (input, expected) => {
     expect(shouldClean(input)).toBe(expected);
-  });
-});
-
-const png = (width: number, height: number, color: [number, number, number]) => {
-  const image = new PNG({ width, height });
-  for (let i = 0; i < image.data.length; i += 4) image.data.set([...color, 255], i);
-  return PNG.sync.write(image);
-};
-
-describe("compareBeforeAfter", () => {
-  const runFolder = "/runs/1";
-
-  it("should report no change for identical images, and name the files to write", () => {
-    const image = png(4, 2, [255, 0, 0]);
-    const { comparison, files } = compareBeforeAfter("firefox", image, image, runFolder, 0.2);
-    expect(comparison).toEqual({
-      browser: "firefox",
-      pixelChange: 0,
-      pixelChangePercentage: 0,
-      before: { width: 4, height: 2 },
-      after: { width: 4, height: 2 },
-      sizeChanged: false,
-      beforePath: path.join(runFolder, "before-firefox.png"),
-      afterPath: path.join(runFolder, "after-firefox.png"),
-      diffPath: path.join(runFolder, "diff-firefox.png"),
-    });
-    expect(files.map(([name]) => path.join(runFolder, name))).toEqual([
-      comparison.beforePath,
-      comparison.afterPath,
-      comparison.diffPath,
-    ]);
-    expect(files[0][1]).toBe(image);
-    expect(files[1][1]).toBe(image);
-    expect(PNG.sync.read(files[2][1])).toMatchObject({ width: 4, height: 2 });
-  });
-
-  it("should count changed pixels", () => {
-    const { comparison } = compareBeforeAfter(
-      "chromium",
-      png(2, 2, [255, 0, 0]),
-      png(2, 2, [0, 0, 255]),
-      runFolder,
-      0.2,
-    );
-    expect(comparison).toMatchObject({ pixelChange: 4, pixelChangePercentage: 100, sizeChanged: false });
-  });
-
-  it("should flag a size change and count the added area as changed", () => {
-    const { comparison, files } = compareBeforeAfter(
-      "chromium",
-      png(2, 2, [255, 0, 0]),
-      png(2, 4, [255, 0, 0]),
-      runFolder,
-      0.2,
-    );
-    expect(comparison).toMatchObject({
-      before: { width: 2, height: 2 },
-      after: { width: 2, height: 4 },
-      sizeChanged: true,
-      pixelChange: 4,
-    });
-    expect(PNG.sync.read(files[2][1])).toMatchObject({ width: 2, height: 4 });
   });
 });

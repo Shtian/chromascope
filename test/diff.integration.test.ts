@@ -1,9 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
+import { chromium, firefox, webkit } from "playwright";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { diff } from "../src/commands/diff";
 import { type CaptureOptions, parseCaptureOptions } from "../src/lib/capture-options";
 import output from "../src/lib/output";
+import { playwrightCapturer } from "../src/lib/playwright-capturer";
 import {
   BOX_SIZE,
   createTempDir,
@@ -16,6 +18,7 @@ import {
 } from "./fixture-server";
 
 const BROWSERS = ["chromium", "firefox", "webkit"];
+const capturer = playwrightCapturer({ chromium, firefox, webkit });
 
 describe("diff", () => {
   let server: FixtureServer;
@@ -40,14 +43,18 @@ describe("diff", () => {
   });
 
   const run = (capture: Partial<CaptureOptions> = {}, saveDiff = false) => {
-    const pending = diff(server.url, {
-      capture: { ...parseCaptureOptions({}, { browsers: ["chromium", "webkit", "firefox"] }), ...capture },
-      base: "chromium",
-      threshold: 0.2,
-      failAbove: null,
-      saveDiff,
-      run: { folder: path.join(tempDir, "runs") },
-    }).then(({ result }) => result);
+    const pending = diff(
+      server.url,
+      {
+        capture: { ...parseCaptureOptions({}, { browsers: ["chromium", "webkit", "firefox"] }), ...capture },
+        base: "chromium",
+        threshold: 0.2,
+        failAbove: null,
+        saveDiff,
+        run: { folder: path.join(tempDir, "runs") },
+      },
+      capturer,
+    ).then(({ result }) => result);
     return { pending, result: pending.then((run) => run.comparisons) };
   };
 

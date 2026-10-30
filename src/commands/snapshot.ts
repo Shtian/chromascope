@@ -1,7 +1,7 @@
 import { version } from "../../package.json";
 import type { BaselineStore } from "../lib/baselines";
-import { captureAll } from "../lib/capture";
 import type { CaptureOptions } from "../lib/capture-options";
+import { type Capturer, captureAll } from "../lib/capturer";
 import { pickImageOptions } from "../lib/image-options";
 import { byBrowser, SCHEMA_VERSION, type SnapshotResult, timingsOf } from "../lib/result";
 
@@ -11,9 +11,10 @@ export const snapshot = async (
   name: string,
   options: CaptureOptions,
   store: BaselineStore,
+  capturer: Capturer,
 ): Promise<SnapshotResult> => {
   const started = performance.now();
-  const captures = await captureAll(options.browsers, url, options);
+  const captures = await captureAll(capturer, options.browsers, url, options);
   const capturedAt = new Date().toISOString();
   const capture = pickImageOptions(options);
 
