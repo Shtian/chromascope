@@ -161,6 +161,22 @@ describe("runtime errors", () => {
     expect(verbose.stderr).toContain("Call log");
   });
 
+  it("should leave no run folder behind when a capture fails", async () => {
+    const closed = await closedPortUrl();
+    const failing = [
+      ["diff", server.url, "--browsers", "chromium,webkit", "--element", "#nope", "--timeout", "500", "--save-diff"],
+      ["versus", server.url, closed, "--browsers", "chromium"],
+      ["compare", closed, "--name", "home"],
+    ];
+    expect((await chromascope("snapshot", server.url, "--name", "home")).code).toBe(0);
+
+    for (const args of failing) {
+      const { code } = await chromascope(...args);
+      expect(code, args.join(" ")).toBe(3);
+    }
+    expect(fs.existsSync(path.join(tempDir, "chromascope-runs"))).toBe(false);
+  });
+
   it("should print the error as JSON with --json", async () => {
     const url = await closedPortUrl();
     const { code, stdout } = await chromascope("diff", url, "--browsers", "chromium,webkit", "--json");

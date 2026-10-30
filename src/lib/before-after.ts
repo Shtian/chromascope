@@ -8,10 +8,10 @@ import {
   captureConflictError,
   deriveBaselineName,
   findCaptureConflicts,
-  withoutDefaults,
 } from "./baselines";
-import type { BrowserName, ImageOptions } from "./capture-options";
+import type { BrowserName } from "./capture-options";
 import { compareImages } from "./image";
+import { type ImageOptions, withoutDefaults } from "./image-options";
 import type { CompareComparison } from "./result";
 
 type StoredBaseline = Pick<Baseline, "metadata" | "has">;
@@ -124,7 +124,8 @@ export const shouldClean = ({
 
 /**
  * Compares a browser's after capture against its before capture: the baseline in a before/after comparison, or the
- * first URL in a URL comparison. Returns the comparison and the before, after and diff images to write to the run folder.
+ * first URL in a URL comparison. Returns the comparison and the before, after and diff images to write to the run
+ * folder, by file name. File names are stable.
  */
 export const compareBeforeAfter = (
   browser: BrowserName,
@@ -133,6 +134,7 @@ export const compareBeforeAfter = (
   runFolder: string,
   threshold: number,
 ) => {
+  const names = { before: `before-${browser}.png`, after: `after-${browser}.png`, diff: `diff-${browser}.png` };
   const beforeImage = PNG.sync.read(before);
   const afterImage = PNG.sync.read(after);
   const { pixelChange, pixelChangePercentage, diff } = compareImages(beforeImage, afterImage, threshold);
@@ -144,14 +146,14 @@ export const compareBeforeAfter = (
     before: { width: beforeImage.width, height: beforeImage.height },
     after: { width: afterImage.width, height: afterImage.height },
     sizeChanged: beforeImage.width !== afterImage.width || beforeImage.height !== afterImage.height,
-    beforePath: path.join(runFolder, `before-${browser}.png`),
-    afterPath: path.join(runFolder, `after-${browser}.png`),
-    diffPath: path.join(runFolder, `diff-${browser}.png`),
+    beforePath: path.join(runFolder, names.before),
+    afterPath: path.join(runFolder, names.after),
+    diffPath: path.join(runFolder, names.diff),
   };
   const files: Array<[string, Buffer]> = [
-    [comparison.beforePath, before],
-    [comparison.afterPath, after],
-    [comparison.diffPath, PNG.sync.write(diff)],
+    [names.before, before],
+    [names.after, after],
+    [names.diff, PNG.sync.write(diff)],
   ];
   return { comparison, files };
 };

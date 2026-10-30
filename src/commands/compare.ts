@@ -1,13 +1,13 @@
 import fs from "node:fs";
 import { version } from "../../package.json";
-import { type RunFolderOptions, resolveRun } from "../context";
 import { type BaselineStore, deriveBaselineName } from "../lib/baselines";
 import { compareBeforeAfter, planComparison, shouldClean, updatedBaseline } from "../lib/before-after";
 import { captureAll } from "../lib/capture";
-import type { BrowserName, ImageOptions } from "../lib/capture-options";
+import type { BrowserName } from "../lib/capture-options";
+import type { ImageOptions } from "../lib/image-options";
 import output from "../lib/output";
 import { byBrowser, type CompareResult, SCHEMA_VERSION, timingsOf } from "../lib/result";
-import { createRunFolder } from "../lib/run-folder";
+import { openRun, type RunFolderOptions } from "../lib/run";
 import { exceedsFailAbove } from "../lib/utils";
 
 /** The capture options passed to `compare`. The image options and browsers that weren't passed come from the baseline. */
@@ -56,9 +56,8 @@ export const compare = async (options: CompareOptions, store: BaselineStore) => 
   });
   const { dir, metadata, imagePath } = baseline;
 
-  const { runId, runFolder } = resolveRun(options.run);
-  createRunFolder({ runFolder, options: options.run });
-  output.debug(`Comparing ${url} against baseline ${dir}, run folder: ${runFolder}`);
+  const run = openRun(options.run);
+  output.debug(`Comparing ${url} against baseline ${dir}, run folder: ${run.dir}`);
 
   const captures = await captureAll(browsers, url, { ...capture, browsers, timeout, cookie });
 
@@ -67,10 +66,10 @@ export const compare = async (options: CompareOptions, store: BaselineStore) => 
       browser,
       fs.readFileSync(imagePath(browser)),
       image,
-      runFolder,
+      run.dir,
       options.threshold,
     );
-    for (const [file, data] of files) fs.writeFileSync(file, data);
+    for (const [file, data] of files) run.write(file, data);
     return comparison;
   });
   const aboveFailAbove = exceedsFailAbove(comparisons, options.failAbove);
@@ -96,12 +95,12 @@ export const compare = async (options: CompareOptions, store: BaselineStore) => 
   const result: CompareResult = {
     schemaVersion: SCHEMA_VERSION,
     command: "compare",
-    runId,
+    runId: run.runId,
     name,
     baselineDir: dir,
     url,
     options: { ...capture, browsers, threshold: options.threshold, failAbove: options.failAbove, timeout },
-    artifactsDir: runFolder,
+    artifactsDir: run.dir,
     comparisons,
     updated: options.update,
     cleaned,

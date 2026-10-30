@@ -31,6 +31,8 @@ export class ChromascopeError extends Error {
 export const usageError = (code: UsageErrorCode, message: string, hint: string, options?: ErrorOptions) =>
   new ChromascopeError(code, message, hint, "usage", options);
 
+export const invalidOption = (message: string, hint: string) => usageError("INVALID_OPTION", message, hint);
+
 export const runtimeError = (code: RuntimeErrorCode, message: string, hint: string, options?: ErrorOptions) =>
   new ChromascopeError(code, message, hint, "runtime", options);
 

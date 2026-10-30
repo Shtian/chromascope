@@ -59,6 +59,9 @@ export const parseNumber = (value: unknown, isValid: (number: number) => boolean
   return number;
 };
 
+/** Quotes an argument for a POSIX shell, unless it is safe as is. */
+export const shellQuote = (arg: string) => (/^[\w@%+=:,./-]+$/.test(arg) ? arg : `'${arg.replaceAll("'", "'\\''")}'`);
+
 export const parseThreshold = (value: unknown) =>
   parseNumber(
     value,

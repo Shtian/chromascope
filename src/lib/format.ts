@@ -1,4 +1,5 @@
-import type { BrowserName, Size } from "./capture-options";
+import type { BrowserName } from "./capture-options";
+import type { Size } from "./image-options";
 import type {
   CleanResult,
   CompareComparison,

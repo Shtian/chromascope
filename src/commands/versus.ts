@@ -1,11 +1,10 @@
-import fs from "node:fs";
-import { type RunFolderOptions, resolveRun } from "../context";
 import { compareBeforeAfter } from "../lib/before-after";
 import { captureAll } from "../lib/capture";
-import { type CaptureOptions, pickImageOptions } from "../lib/capture-options";
+import type { CaptureOptions } from "../lib/capture-options";
+import { pickImageOptions } from "../lib/image-options";
 import output from "../lib/output";
 import { SCHEMA_VERSION, timingsOf, type VersusResult } from "../lib/result";
-import { createRunFolder } from "../lib/run-folder";
+import { openRun, type RunFolderOptions } from "../lib/run";
 import { pairCaptures } from "../lib/url-comparison";
 import { exceedsFailAbove } from "../lib/utils";
 
@@ -28,9 +27,8 @@ export const versus = async (options: VersusOptions) => {
   const started = performance.now();
   const { beforeUrl, afterUrl, capture, threshold, failAbove } = options;
 
-  const { runId, runFolder } = resolveRun(options.run);
-  createRunFolder({ runFolder, options: options.run });
-  output.debug(`Comparing ${afterUrl} against ${beforeUrl}, run folder: ${runFolder}`);
+  const run = openRun(options.run);
+  output.debug(`Comparing ${afterUrl} against ${beforeUrl}, run folder: ${run.dir}`);
 
   output.info(`Before: ${beforeUrl}`);
   const before = await captureAll(capture.browsers, beforeUrl, capture);
@@ -39,15 +37,15 @@ export const versus = async (options: VersusOptions) => {
   const pairs = pairCaptures(before, after);
 
   const comparisons = pairs.map((pair) => {
-    const { comparison, files } = compareBeforeAfter(pair.browser, pair.before, pair.after, runFolder, threshold);
-    for (const [file, data] of files) fs.writeFileSync(file, data);
+    const { comparison, files } = compareBeforeAfter(pair.browser, pair.before, pair.after, run.dir, threshold);
+    for (const [file, data] of files) run.write(file, data);
     return comparison;
   });
 
   const result: VersusResult = {
     schemaVersion: SCHEMA_VERSION,
     command: "versus",
-    runId,
+    runId: run.runId,
     beforeUrl,
     afterUrl,
     options: {
@@ -57,7 +55,7 @@ export const versus = async (options: VersusOptions) => {
       failAbove,
       timeout: capture.timeout,
     },
-    artifactsDir: runFolder,
+    artifactsDir: run.dir,
     comparisons,
     timings: timingsOf(started, pairs),
   };
