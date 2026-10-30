@@ -7,11 +7,11 @@ export default defineConfig({
       include: ["src/**/*.ts"],
       exclude: [
         "src/**/*.test.ts",
-        // Glue around the CLI, Playwright and the terminal. Covered by the integration and e2e tests instead.
+        // Glue covered by the integration and e2e tests instead.
         // The CLI entry point: parses flags and wires the commands to Playwright and the terminal.
         "src/index.ts",
         // The Playwright capturer. Unit tests use a fake capturer instead.
-        "src/lib/capture.ts",
+        "src/lib/playwright-capturer.ts",
         // Runs `playwright install`.
         "src/lib/install.ts",
       ],

@@ -29,7 +29,7 @@ A comparison of two URLs captured with the same capture options, each browser's 
 _Avoid_: live compare, against-compare
 
 **Comparison run**:
-One run of a cross-browser diff, before/after comparison or URL comparison: each browser's capture is compared against its "before" image, and the images are written to a run folder. The three differ only in where "before" comes from: the base browser, the baseline, or the first URL.
+One run of a cross-browser diff, before/after comparison or URL comparison: each browser's capture is compared against its "before" image, and the images are written to a run folder (by a cross-browser diff only with `--save-diff` or `--out`). The three differ only in where "before" comes from: the base browser, the baseline, or the first URL.
 _Avoid_: diff run, comparison job
 
 ## Baselines

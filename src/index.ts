@@ -7,7 +7,6 @@ import { diff } from "./commands/diff";
 import { snapshot } from "./commands/snapshot";
 import { versus } from "./commands/versus";
 import { createBaselineStore, DEFAULT_BASELINE_DIR, deriveBaselineName, parseBaselineName } from "./lib/baselines";
-import { playwrightCapturer } from "./lib/capture";
 import { BROWSERS, type CaptureFlags, parseBase, parseBrowsers, parseCaptureOptions } from "./lib/capture-options";
 import { runDoctor } from "./lib/doctor";
 import {
@@ -37,6 +36,7 @@ import {
 import { type ImageOptions, imageOptionHelp, parseImageOptions } from "./lib/image-options";
 import { installBrowsers } from "./lib/install";
 import output from "./lib/output";
+import { playwrightCapturer } from "./lib/playwright-capturer";
 import { type CleanResult, SCHEMA_VERSION } from "./lib/result";
 import { parseFailAbove, parseThreshold, parseUrl } from "./lib/utils";
 

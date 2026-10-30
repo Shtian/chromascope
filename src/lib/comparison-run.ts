@@ -171,10 +171,10 @@ const beforeAfter = async (
   let captures: Capture[];
   if (before.kind === "url") {
     output.info(`Before: ${before.url}`);
-    const first = await captureAll(capturer, browsers, before.url, capture);
+    const beforeCaptures = await captureAll(capturer, browsers, before.url, capture);
     output.info(`After: ${url}`);
     captures = await captureAll(capturer, browsers, url, capture);
-    pairs = pairCaptures(first, captures);
+    pairs = pairCaptures(beforeCaptures, captures);
   } else {
     captures = await captureAll(capturer, browsers, url, capture);
     pairs = captures.map(({ browser, image, ms }) => ({ browser, before: before.image(browser), after: image, ms }));

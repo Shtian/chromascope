@@ -3,9 +3,9 @@ import path from "node:path";
 import { chromium, firefox, webkit } from "playwright";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { diff } from "../src/commands/diff";
-import { playwrightCapturer } from "../src/lib/capture";
 import { type CaptureOptions, parseCaptureOptions } from "../src/lib/capture-options";
 import output from "../src/lib/output";
+import { playwrightCapturer } from "../src/lib/playwright-capturer";
 import {
   BOX_SIZE,
   createTempDir,

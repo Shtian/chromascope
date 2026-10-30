@@ -7,7 +7,7 @@ import type { Capturer } from "../lib/capturer";
 import { runComparison } from "../lib/comparison-run";
 import type { ImageOptions } from "../lib/image-options";
 import output from "../lib/output";
-import { byBrowser, type CompareResult } from "../lib/result";
+import { byBrowser, type CompareResult, timingsOf } from "../lib/result";
 import type { RunFolderOptions } from "../lib/run";
 
 /** The capture options passed to `compare`. The image options and browsers that weren't passed come from the baseline. */
@@ -40,6 +40,7 @@ export type CompareOptions = {
  * Resolves to the result and whether a comparison is above `--fail-above`.
  */
 export const compare = async (options: CompareOptions, store: BaselineStore, capturer: Capturer) => {
+  const started = performance.now();
   const { imageFlags, browsers: browsersFlag, timeout, cookie } = options.capture;
   const name = options.name ?? deriveBaselineName(options.url ?? "", imageFlags.element ?? null);
   const { baseline, url, capture, browsers, conflicts } = planComparison({
@@ -86,5 +87,8 @@ export const compare = async (options: CompareOptions, store: BaselineStore, cap
   }
   const cleaned = shouldClean({ ...options, aboveFailAbove }) && store.remove(name) !== null;
 
-  return { result: { ...result, updated: options.update, cleaned } satisfies CompareResult, aboveFailAbove };
+  // The timings cover the whole command, the baseline lookup, update and clean too.
+  const { timings: _, ...fields } = result;
+  const timings = timingsOf(started, captures);
+  return { result: { ...fields, updated: options.update, cleaned, timings } satisfies CompareResult, aboveFailAbove };
 };

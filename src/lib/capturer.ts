@@ -3,7 +3,7 @@ import output from "./output";
 
 /**
  * Captures the page in one browser and returns the PNG. The seam between chromascope and the browsers: Playwright in
- * production (`capture.ts`), a fake that returns fixed PNGs in unit tests.
+ * production (`playwright-capturer.ts`), a fake that returns fixed PNGs in unit tests.
  */
 export type Capturer = (browser: BrowserName, url: string, options: CaptureOptions) => Promise<Buffer>;
 

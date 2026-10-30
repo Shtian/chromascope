@@ -72,6 +72,7 @@ describe("compare", () => {
       ["firefox", 100],
     ]);
     expect(aboveFailAbove).toBe(true);
+    expect(Object.keys(result).slice(-3)).toEqual(["updated", "cleaned", "timings"]);
   });
 
   it("should save the capture as the baseline with --update, keeping the browsers it didn't compare", async () => {
