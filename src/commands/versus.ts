@@ -1,12 +1,9 @@
-import { compareBeforeAfter } from "../lib/before-after";
-import { captureAll } from "../lib/capture";
 import type { CaptureOptions } from "../lib/capture-options";
-import { pickImageOptions } from "../lib/image-options";
+import type { Capturer } from "../lib/capturer";
+import { runComparison } from "../lib/comparison-run";
 import output from "../lib/output";
-import { SCHEMA_VERSION, timingsOf, type VersusResult } from "../lib/result";
-import { openRun, type RunFolderOptions } from "../lib/run";
-import { pairCaptures } from "../lib/url-comparison";
-import { exceedsFailAbove } from "../lib/utils";
+import type { VersusResult } from "../lib/result";
+import type { RunFolderOptions } from "../lib/run";
 
 export type VersusOptions = {
   beforeUrl: string;
@@ -23,41 +20,18 @@ export type VersusOptions = {
  * against its capture of the before URL. Never reads or writes baselines.
  * Resolves to the result and whether a comparison is above `--fail-above`.
  */
-export const versus = async (options: VersusOptions) => {
-  const started = performance.now();
-  const { beforeUrl, afterUrl, capture, threshold, failAbove } = options;
-
-  const run = openRun(options.run);
-  output.debug(`Comparing ${afterUrl} against ${beforeUrl}, run folder: ${run.dir}`);
-
-  output.info(`Before: ${beforeUrl}`);
-  const before = await captureAll(capture.browsers, beforeUrl, capture);
-  output.info(`After: ${afterUrl}`);
-  const after = await captureAll(capture.browsers, afterUrl, capture);
-  const pairs = pairCaptures(before, after);
-
-  const comparisons = pairs.map((pair) => {
-    const { comparison, files } = compareBeforeAfter(pair.browser, pair.before, pair.after, run.dir, threshold);
-    for (const [file, data] of files) run.write(file, data);
-    return comparison;
-  });
-
-  const result: VersusResult = {
-    schemaVersion: SCHEMA_VERSION,
-    command: "versus",
-    runId: run.runId,
-    beforeUrl,
-    afterUrl,
-    options: {
-      ...pickImageOptions(capture),
-      browsers: capture.browsers,
-      threshold,
-      failAbove,
-      timeout: capture.timeout,
+export const versus = async (options: VersusOptions, capturer: Capturer) => {
+  const { beforeUrl, afterUrl } = options;
+  output.debug(`Comparing ${afterUrl} against ${beforeUrl}`);
+  const { result, aboveFailAbove } = await runComparison(
+    {
+      ...options,
+      command: "versus",
+      fields: { beforeUrl, afterUrl },
+      url: afterUrl,
+      before: { kind: "url", url: beforeUrl },
     },
-    artifactsDir: run.dir,
-    comparisons,
-    timings: timingsOf(started, pairs),
-  };
-  return { result, aboveFailAbove: exceedsFailAbove(comparisons, failAbove) };
+    capturer,
+  );
+  return { result: result satisfies VersusResult, aboveFailAbove };
 };

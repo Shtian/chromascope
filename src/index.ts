@@ -7,6 +7,7 @@ import { diff } from "./commands/diff";
 import { snapshot } from "./commands/snapshot";
 import { versus } from "./commands/versus";
 import { createBaselineStore, DEFAULT_BASELINE_DIR, deriveBaselineName, parseBaselineName } from "./lib/baselines";
+import { playwrightCapturer } from "./lib/capture";
 import { BROWSERS, type CaptureFlags, parseBase, parseBrowsers, parseCaptureOptions } from "./lib/capture-options";
 import { runDoctor } from "./lib/doctor";
 import {
@@ -42,6 +43,9 @@ import { parseFailAbove, parseThreshold, parseUrl } from "./lib/utils";
 type Flags = CaptureFlags & Record<string, unknown>;
 
 const cli = cac("chromascope");
+
+const browserTypes = { chromium, webkit, firefox };
+const capturer = playwrightCapturer(browserTypes);
 
 /**
  * Adds the capture option flags shared by every command that captures a page.
@@ -156,7 +160,7 @@ withRunFolderOptions(
     output.debug(`Options provided: ${JSON.stringify(options)}`);
     output.debug(`Diffing URL: ${normalizedUrl}`);
 
-    const { result, aboveFailAbove } = await diff(normalizedUrl, diffOptions);
+    const { result, aboveFailAbove } = await diff(normalizedUrl, diffOptions, capturer);
     output.info("Diff complete", "🎉");
     printResult(result, formatDiffPlain, formatDiffDecorated);
     return failAboveExitCode(aboveFailAbove, result.options.failAbove);
@@ -181,7 +185,7 @@ withBaselineDir(
     const store = createBaselineStore(optionalString(options.baselineDir));
     output.debug(`Options provided: ${JSON.stringify(options)}`);
 
-    const result = await snapshot(normalizedUrl, name, capture, store);
+    const result = await snapshot(normalizedUrl, name, capture, store, capturer);
     output.info(`Saved baseline ${JSON.stringify(name)}`, "🎉");
     printResult(result, formatSnapshotPlain, formatSnapshotDecorated);
     return EXIT_CODES.ok;
@@ -244,6 +248,7 @@ withRunFolderOptions(
         baselineDir: optionalString(options.baselineDir),
       },
       createBaselineStore(optionalString(options.baselineDir)),
+      capturer,
     );
 
     output.info("Compare complete", "🎉");
@@ -275,14 +280,17 @@ withRunFolderOptions(
   .example("  $ chromascope versus https://example.com localhost:3000 --cookie session=abc --json --out /tmp/versus")
   .action(async (beforeUrl: string, afterUrl: string, options: Flags) => {
     configureOutput(options);
-    const { result, aboveFailAbove } = await versus({
-      beforeUrl: parseUrl(beforeUrl),
-      afterUrl: parseUrl(afterUrl),
-      capture: parseCaptureOptions(options, { browsers: ["chromium", "webkit", "firefox"] }),
-      threshold: parseThreshold(options.threshold),
-      failAbove: parseFailAboveOption(options),
-      run: parseRunFolderOptions(options),
-    });
+    const { result, aboveFailAbove } = await versus(
+      {
+        beforeUrl: parseUrl(beforeUrl),
+        afterUrl: parseUrl(afterUrl),
+        capture: parseCaptureOptions(options, { browsers: ["chromium", "webkit", "firefox"] }),
+        threshold: parseThreshold(options.threshold),
+        failAbove: parseFailAboveOption(options),
+        run: parseRunFolderOptions(options),
+      },
+      capturer,
+    );
 
     output.info("URL comparison complete", "🎉");
     printResult(result, formatVersusPlain, formatVersusDecorated);
@@ -309,7 +317,6 @@ withFolderOption(
   .example("  $ chromascope doctor --browsers chromium --json")
   .action(async (options: Flags) => {
     configureOutput(options);
-    const browserTypes = { chromium, webkit, firefox };
     const browsers = options.browsers === undefined ? [...BROWSERS] : parseBrowsers(options.browsers);
     const step = output.step("Checking the environment", "🩺");
     const result = await runDoctor({
