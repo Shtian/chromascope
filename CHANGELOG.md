@@ -2,6 +2,17 @@
 
 
 
+
+## 2.0.2
+<sub>2026-10-30</sub>
+
+- *(patch)*
+  A run that fails during capture no longer leaves an empty run folder behind in `diff --save-diff`, `compare` and `versus`.
+- *(patch)*
+  Internal: each image option is now defined once, in one place. Help text, error messages, `snapshot` hints and `--json` output are unchanged.
+- *(patch)*
+  Internal: `diff`, `compare` and `versus` now share one comparison pipeline. Artifact names, exit codes and the `--json` schema are unchanged. `diff` no longer depends on the base browser being listed first in `--browsers`.
+
 ## 2.0.1
 <sub>2026-10-29</sub>
 
