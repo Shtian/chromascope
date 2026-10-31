@@ -72,7 +72,7 @@ jobs:
           fetch-depth: 0
       # Puts a writable Node 24 toolchain on PATH, so the npm upgrade below
       # replaces the npm that bumpy actually calls.
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
       - uses: pnpm/setup@v3
